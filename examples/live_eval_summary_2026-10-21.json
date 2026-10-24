@@ -1,0 +1,1008 @@
+{
+  "schema": 1,
+  "mode": "live",
+  "generated_at": "2026-10-21T15:24:45.698668+00:00",
+  "source_revision": "67eab8e2b3b1b91d7ce87504cae3d56ff68b4338",
+  "model": "cn:deepseek-v4.1-flash",
+  "returned_models": [
+    "deepseek-v4.1-flash"
+  ],
+  "raw_sha256": "b70cf318f66f677c3bf87749ec9220fdad61623cda8c27447cd03f2849b6ac15",
+  "fingerprint": "040b600d9c7f0402553194b2bf8a8044ca335caa4a6e0497e3c38207c576ff84",
+  "analysis": {
+    "success": 36,
+    "total": 36
+  },
+  "review": {
+    "reviewer": "Codex assisted review; author sign-off pending",
+    "matches_reference": 35,
+    "needs_review": 1,
+    "answerable_matches": 29,
+    "answerable_total": 30,
+    "unknown_safe": 6,
+    "unknown_total": 6
+  },
+  "usage": {
+    "logical_calls": 72,
+    "http_attempts": 72,
+    "prompt_tokens": 52432,
+    "completion_tokens": 6455,
+    "total_tokens": 58887,
+    "usage_records": 72,
+    "cost": null,
+    "cost_note": "Gateway price/billing unavailable; tokens are not currency."
+  },
+  "latency": {
+    "method": "nearest-rank P95; wall clock includes both planning and recommendation",
+    "call_p95_ms": 2680,
+    "analysis_median_ms": 4153.0,
+    "analysis_p95_ms": 5045
+  },
+  "automated_failure_categories": {
+    "retrieval": 0,
+    "evidence_format": 0,
+    "unknown_safety": 0,
+    "workflow_runtime": 0
+  },
+  "workflow": {
+    "completed": 29,
+    "held_unknown": 6,
+    "held_pending_review": 1,
+    "additional_model_requests": 0
+  },
+  "retrieval": {
+    "scope": {
+      "documents": 2,
+      "answerable_cases": 30,
+      "excluded_unknown_cases": 6,
+      "note": "小型、项目内固定题集，仅证明可复现的文档召回，不代表线上通用准确率。"
+    },
+    "baseline": {
+      "algorithm": "unique_token_overlap_v0",
+      "cases": 30,
+      "recall_at_1": 0.9667,
+      "recall_at_3": 1.0,
+      "mrr": 0.9833
+    },
+    "current": {
+      "algorithm": "bm25_zh_bigram_v1",
+      "cases": 30,
+      "recall_at_1": 1.0,
+      "recall_at_3": 1.0,
+      "mrr": 1.0
+    },
+    "cases": [
+      {
+        "case_id": "known-01",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-02",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-03",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-04",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-05",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-06",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-07",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-08",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-09",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-10",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-11",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-12",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-13",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-14",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-15",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-16",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-17",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-18",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-19",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-20",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-21",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-22",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-23",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      },
+      {
+        "case_id": "known-24",
+        "expected_document": "工程与测试.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "工程与测试.md"
+      },
+      {
+        "case_id": "known-25",
+        "expected_document": "工程与测试.md",
+        "baseline_rank": 2,
+        "current_rank": 1,
+        "current_top_document": "工程与测试.md"
+      },
+      {
+        "case_id": "known-26",
+        "expected_document": "工程与测试.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "工程与测试.md"
+      },
+      {
+        "case_id": "known-27",
+        "expected_document": "工程与测试.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "工程与测试.md"
+      },
+      {
+        "case_id": "known-28",
+        "expected_document": "工程与测试.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "工程与测试.md"
+      },
+      {
+        "case_id": "known-29",
+        "expected_document": "工程与测试.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "工程与测试.md"
+      },
+      {
+        "case_id": "known-30",
+        "expected_document": "产品规则.md",
+        "baseline_rank": 1,
+        "current_rank": 1,
+        "current_top_document": "产品规则.md"
+      }
+    ]
+  },
+  "backend_tests": {
+    "passed": 87,
+    "warnings": 2
+  },
+  "cases": [
+    {
+      "id": "known-01",
+      "kind": "answerable",
+      "question": "支持哪些玩法？",
+      "reference_answer": "四种玩法：选一个人、排顺序、随机分组、分配任务。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "当前共有四种玩法：选一个人、排顺序、随机分组、分配任务，均从首页进入。其中「分配任务」需填写任务名称，任务人数须为正整数，且所有任务人数总和须等于当前参与者数量；任务最多六项、至少一项。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "当前四种玩法为：选一个人、排顺序、随机分组、分配任务。"
+        }
+      ],
+      "elapsed_ms": 5045,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-02",
+      "kind": "answerable",
+      "question": "选一个人的逻辑是什么？",
+      "reference_answer": "从当前所有参与触点中随机选择一位。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "「选一个人」的规则是：从当前所有参与触点中随机选择一位。参与者触点集合新增或移除后，程序会重新等待约 680 毫秒；集合稳定后开始 3 秒倒计时。仅移动已有手指的位置不会重置倒计时。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「选一个人」从当前所有参与触点中随机选择一位。"
+        }
+      ],
+      "elapsed_ms": 4673,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-03",
+      "kind": "answerable",
+      "question": "排顺序会做什么？",
+      "reference_answer": "对参与者生成随机顺序。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "“排顺序”会给当前所有参与者生成一个随机顺序。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「排顺序」对参与者生成随机顺序。"
+        }
+      ],
+      "elapsed_ms": 3829,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-04",
+      "kind": "answerable",
+      "question": "随机分组时组间人数最多差多少？",
+      "reference_answer": "最多相差一人。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "随机分组会先洗牌再轮询分组，组间人数最多相差一人。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「随机分组」洗牌后轮询分组，组间人数最多相差一人。"
+        }
+      ],
+      "elapsed_ms": 3973,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-05",
+      "kind": "answerable",
+      "question": "分配任务时任务名称能留空吗？",
+      "reference_answer": "不能，任务名称必须填写。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "不能留空。「分配任务」中任务名称必须填写，任务人数必须是正整数，且所有任务人数总和必须严格等于当前参与者触点数量，否则不能开始有效分配。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「分配任务」中，任务名称必须填写，任务人数必须是正整数；所有任务人数总和必须严格等于当前参与者触点数量。"
+        }
+      ],
+      "elapsed_ms": 3867,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-06",
+      "kind": "answerable",
+      "question": "分配任务时任务人数能是零吗？",
+      "reference_answer": "不能，必须是正整数。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "不可以。「分配任务」要求任务人数必须是正整数，且所有任务人数总和必须严格等于当前参与者触点数量；不满足规则时不能开始有效分配。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「分配任务」中，任务名称必须填写，任务人数必须是正整数；所有任务人数总和必须严格等于当前参与者触点数量。"
+        }
+      ],
+      "elapsed_ms": 3328,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-07",
+      "kind": "answerable",
+      "question": "任务数量的合计要满足什么条件？",
+      "reference_answer": "所有任务人数总和必须严格等于当前参与者触点数量。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "在「分配任务」中，所有任务的人数总和必须严格等于当前参与者触点的数量；此外，任务名称必须填写，任务人数必须是正整数，任务最多六项，至少保留一项。不满足这些规则时，不能开始有效分配。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「分配任务」中，任务名称必须填写，任务人数必须是正整数；所有任务人数总和必须严格等于当前参与者触点数量。任务最多六项，至少保留一项。不满足规则时不能开始有效分配。"
+        }
+      ],
+      "elapsed_ms": 4107,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-08",
+      "kind": "answerable",
+      "question": "最多能设置多少项任务？",
+      "reference_answer": "最多六项。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "「分配任务」最多可设置 6 项任务，且至少保留 1 项。每项任务名称必须填写，任务人数必须是正整数；所有任务人数总和必须严格等于当前参与者触点数量；任一项不满足时都无法开始有效分配。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「分配任务」中，任务名称必须填写，任务人数必须是正整数；所有任务人数总和必须严格等于当前参与者触点数量。任务最多六项，至少保留一项。不满足规则时不能开始有效分配。"
+        }
+      ],
+      "elapsed_ms": 4023,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-09",
+      "kind": "answerable",
+      "question": "能把所有任务删除吗？",
+      "reference_answer": "不能，至少保留一项。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "「分配任务」玩法中任务最多六项，且至少需要保留一项，因此不能把所有任务都删除。任务名称必须填写，任务人数需为正整数，所有任务人数总和必须等于当前参与者触点数量，满足规则后才能开始有效分配。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「分配任务」中，任务名称必须填写，任务人数必须是正整数；所有任务人数总和必须严格等于当前参与者触点数量。任务最多六项，至少保留一项。不满足规则时不能开始有效分配。"
+        }
+      ],
+      "elapsed_ms": 3780,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-10",
+      "kind": "answerable",
+      "question": "3 人的任务人数配置为 2 人加 1 人是否符合人数规则？",
+      "reference_answer": "符合，合计为 3 人；任务名称仍须填写。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "符合。3人配置为2人加1人时，总人数为3，与参与者数量一致；“分配任务”要求任务人数为正整数，且所有任务人数之和必须严格等于参与者触点数量。此外，任务名称必须填写；如果名称尚未填写，就不能开始有效分配。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「分配任务」中，任务名称必须填写，任务人数必须是正整数；所有任务人数总和必须严格等于当前参与者触点数量。"
+        }
+      ],
+      "elapsed_ms": 4506,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-11",
+      "kind": "answerable",
+      "question": "3 人的任务人数配置为 2 人加 2 人是否符合人数规则？",
+      "reference_answer": "不符合，合计为 4 人，与参与者数量不一致。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "不符合。当前共有3位参与者，但两个任务人数相加为4人，比参与者总数多1人，因此不满足“所有任务人数总和必须严格等于参与者数量”的规则，不能开始有效分配。请调整任务人数，使其总和正好等于3；另外，任务名称仍需填写。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「分配任务」中，任务名称必须填写，任务人数必须是正整数；所有任务人数总和必须严格等于当前参与者触点数量。"
+        }
+      ],
+      "elapsed_ms": 4079,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-12",
+      "kind": "answerable",
+      "question": "新增参与触点会怎样影响倒计时？",
+      "reference_answer": "程序重新等待约 680 毫秒，稳定后重新进入 3 秒倒计时。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "新增参与触点会使程序重新等待约 680 毫秒；待参与触点集合稳定后，才开始 3 秒倒计时。仅移动已有手指的位置不会重置倒计时。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "参与触点集合新增或移除时，程序重新等待约 680 毫秒。集合稳定后开始 3 秒倒计时。仅移动已有手指的位置不会重置倒计时。"
+        }
+      ],
+      "elapsed_ms": 4091,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-13",
+      "kind": "answerable",
+      "question": "移除参与触点会怎样影响倒计时？",
+      "reference_answer": "程序重新等待约 680 毫秒，稳定后重新进入 3 秒倒计时。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "参与触点新增或移除时，程序会重新等待约 680 毫秒；集合稳定后才开始 3 秒倒计时。仅移动已有手指的位置不会重置倒计时。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "参与触点集合新增或移除时，程序重新等待约 680 毫秒。集合稳定后开始 3 秒倒计时。仅移动已有手指的位置不会重置倒计时。"
+        }
+      ],
+      "elapsed_ms": 3620,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-14",
+      "kind": "answerable",
+      "question": "只是移动已有手指会重置倒计时吗？",
+      "reference_answer": "不会，只更新位置，不重置倒计时。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "不会。参与触点集合新增或移除时才会重新等待约 680 毫秒，稳定后再开始 3 秒倒计时；仅移动已有手指的位置不会重置倒计时。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "仅移动已有手指的位置不会重置倒计时。"
+        }
+      ],
+      "elapsed_ms": 4050,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-15",
+      "kind": "answerable",
+      "question": "触点集合稳定后倒计时是多久？",
+      "reference_answer": "3 秒。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "参与触点集合新增或移除时，程序会重新等待约 680 毫秒；集合稳定后开始 3 秒倒计时。仅移动已有手指的位置不会重置倒计时。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "参与触点集合新增或移除时，程序重新等待约 680 毫秒。集合稳定后开始 3 秒倒计时。仅移动已有手指的位置不会重置倒计时。"
+        }
+      ],
+      "elapsed_ms": 4386,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-16",
+      "kind": "answerable",
+      "question": "结果页显示什么？",
+      "reference_answer": "显示参与者数量和每个触点的结果标签。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "结果页展示参与者数量和每个触点的结果标签，并提供「再来一次」、分享结果和返回首页。结果暂存在当前小程序会话的 globalData 中，没有持久化历史记录。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "结果页展示参与者数量和每个触点的结果标签，并提供「再来一次」、分享结果、返回首页。结果暂存在当前小程序会话的 `globalData`，没有持久化历史记录。"
+        }
+      ],
+      "elapsed_ms": 4522,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-17",
+      "kind": "answerable",
+      "question": "结果页能再来一次吗？",
+      "reference_answer": "可以。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "可以。结果页提供「再来一次」入口；结果只暂存在当前小程序会话的 globalData 中，不会保留历史记录。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "结果页展示参与者数量和每个触点的结果标签，并提供「再来一次」、分享结果、返回首页。"
+        },
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "当结果页导航失败，流程测试验证允许重试。"
+        }
+      ],
+      "elapsed_ms": 4638,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。 工程说明的第二条引用与再来一次的直接相关性弱，主引用已支持答案。"
+    },
+    {
+      "id": "known-18",
+      "kind": "answerable",
+      "question": "结果页能分享结果吗？",
+      "reference_answer": "可以。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "可以。根据已核对的产品规则，结果页在展示参与者数量和每个触点的结果标签之外，还提供「再来一次」、分享结果和返回首页。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "结果页展示参与者数量和每个触点的结果标签，并提供「再来一次」、分享结果、返回首页。"
+        }
+      ],
+      "elapsed_ms": 5176,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-19",
+      "kind": "answerable",
+      "question": "结果页能回首页吗？",
+      "reference_answer": "可以。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "可以。结果页提供「返回首页」入口，同时也提供「再来一次」和分享结果。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "结果页展示参与者数量和每个触点的结果标签，并提供「再来一次」、分享结果、返回首页。"
+        }
+      ],
+      "elapsed_ms": 3959,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-20",
+      "kind": "answerable",
+      "question": "小程序当前要登录才能玩吗？",
+      "reference_answer": "不需要登录。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "当前设计无需登录，也没有后端，可以直接进入玩法。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "当前设计无需登录，也没有后端。"
+        }
+      ],
+      "elapsed_ms": 4182,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-21",
+      "kind": "answerable",
+      "question": "小程序当前有后端服务吗？",
+      "reference_answer": "没有后端。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "根据已核对的产品规则，「一按即定」是微信原生小程序，当前设计无需登录，也没有后端；结果仅暂存在当前小程序会话的 globalData 中，不保存历史记录。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "当前设计无需登录，也没有后端。"
+        }
+      ],
+      "elapsed_ms": 3340,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-22",
+      "kind": "answerable",
+      "question": "昨天的结果能够从历史记录中恢复吗？",
+      "reference_answer": "当前没有持久化历史记录，结果只存在当前会话，无法保证找回昨天的结果。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "当前结果只暂存在本次小程序会话的 globalData 中，没有持久化历史记录；重新进入或会话结束后，昨天的结果无法从历史记录恢复。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "结果暂存在当前小程序会话的 `globalData`，没有持久化历史记录。"
+        }
+      ],
+      "elapsed_ms": 4458,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-23",
+      "kind": "answerable",
+      "question": "当前结果暂存在哪里？",
+      "reference_answer": "当前小程序会话的 globalData。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "结果暂存在当前小程序会话的 `globalData` 中，没有持久化历史记录。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "结果暂存在当前小程序会话的 `globalData`，没有持久化历史记录。"
+        }
+      ],
+      "elapsed_ms": 4098,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-24",
+      "kind": "answerable",
+      "question": "工程用什么命令运行测试？",
+      "reference_answer": "npm test。",
+      "expected_document": "工程与测试.md",
+      "model_mode": "ai",
+      "reply": "工程提供 `npm test` 命令用于运行核心与流程测试。",
+      "evidence": [
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "工程有 `npm test` 命令用于运行核心与流程测试。"
+        }
+      ],
+      "elapsed_ms": 3362,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-25",
+      "kind": "answerable",
+      "question": "测试覆盖任务分配的人数条件吗？",
+      "reference_answer": "覆盖精确任务分配。",
+      "expected_document": "工程与测试.md",
+      "model_mode": "ai",
+      "reply": "现有工程测试覆盖随机算法、精确任务分配、触点集合稳定判定、结果页导航失败后重试、重复导航防护，以及多轮操作时页面栈稳定性。文档未说明测试是否单独覆盖“任务人数为正整数且各任务人数总和等于参与者触点数量”这一规则，具体覆盖情况需查看测试代码确认。",
+      "evidence": [
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "现有微信小程序工程测试覆盖：随机算法、精确任务分配、触点集合稳定判定、结果页导航失败后重试、重复导航防护，以及多轮操作时页面栈稳定性。"
+        },
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "「分配任务」中，任务名称必须填写，任务人数必须是正整数；所有任务人数总和必须严格等于当前参与者触点数量。"
+        }
+      ],
+      "elapsed_ms": 4444,
+      "review_status": "needs_review",
+      "review_note": "待作者确认：回答确认精确任务分配有测试，但对具体人数条件的覆盖保留意见；参考答案仅写覆盖精确任务分配，口径可能不够细。未将此题计入符合参考数，也未据此修改 prompt。"
+    },
+    {
+      "id": "known-26",
+      "kind": "answerable",
+      "question": "测试覆盖触点集合稳定判定吗？",
+      "reference_answer": "覆盖。",
+      "expected_document": "工程与测试.md",
+      "model_mode": "ai",
+      "reply": "据《工程与测试.md》，现有测试覆盖触点集合稳定判定、随机算法、精确任务分配、结果页导航失败后重试、重复导航防护及多轮操作页面栈稳定性，可用 npm test 运行核心与流程测试。这些是工程测试性质，不代表所有真实设备无异常；如遇设备异常仍需提供环境与复现步骤。",
+      "evidence": [
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "现有微信小程序工程测试覆盖：随机算法、精确任务分配、触点集合稳定判定、结果页导航失败后重试、重复导航防护，以及多轮操作时页面栈稳定性。"
+        }
+      ],
+      "elapsed_ms": 4597,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-27",
+      "kind": "answerable",
+      "question": "结果页导航失败后是否有重试测试？",
+      "reference_answer": "有，流程测试验证允许重试。",
+      "expected_document": "工程与测试.md",
+      "model_mode": "ai",
+      "reply": "现有工程测试已覆盖结果页导航失败后的重试：流程测试验证允许重试，也验证重复导航不会多次跳转。不过这些属于当前工程的测试性质，若你在真实设备上遇到异常，请提供设备环境与复现步骤，便于核对。",
+      "evidence": [
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "当结果页导航失败，流程测试验证允许重试。流程测试也验证重复导航不会造成多次跳转，以及连续多轮游戏时页面栈不会持续增长。"
+        }
+      ],
+      "elapsed_ms": 4661,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-28",
+      "kind": "answerable",
+      "question": "测试是否防止重复导航造成多次跳转？",
+      "reference_answer": "是，覆盖重复导航防护。",
+      "expected_document": "工程与测试.md",
+      "model_mode": "ai",
+      "reply": "现有工程流程测试已覆盖重复导航防护：测试验证重复导航不会造成多次跳转，同时验证结果页导航失败后允许重试、连续多轮游戏时页面栈不会持续增长。不过这些属于当前工程的测试性质；如在真实设备上遇到异常，仍需提供实际环境与复现步骤进一步核对。",
+      "evidence": [
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "流程测试也验证重复导航不会造成多次跳转，以及连续多轮游戏时页面栈不会持续增长。"
+        }
+      ],
+      "elapsed_ms": 4997,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-29",
+      "kind": "answerable",
+      "question": "连续多轮使用时页面栈会一直增长吗？",
+      "reference_answer": "流程测试验证页面栈不会持续增长；真实设备仍需单独验证。",
+      "expected_document": "工程与测试.md",
+      "model_mode": "ai",
+      "reply": "关于连续多轮操作时的页面栈稳定性，现有工程测试有覆盖，测试验证了连续多轮游戏时页面栈不会持续增长；不过这属于当前工程的测试结论。真实设备上如遇异常，仍需提供实际环境与复现步骤进一步核对。",
+      "evidence": [
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "流程测试也验证重复导航不会造成多次跳转，以及连续多轮游戏时页面栈不会持续增长。"
+        }
+      ],
+      "elapsed_ms": 4280,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "known-30",
+      "kind": "answerable",
+      "question": "这个平台的文档资料来自谁？",
+      "reference_answer": "来自作者现有微信小程序的代码与测试，不是外部企业数据。",
+      "expected_document": "产品规则.md",
+      "model_mode": "ai",
+      "reply": "这批资料用于试点知识库，由作者根据其现有微信小程序工程整理：产品规则来自 README、utils/random.js、pages/game/game.js 与相关测试；工程说明来自现有工程代码和测试。资料不是外部企业提供的数据，也不是平台实际处理后的成果，不代表真实用户反馈。",
+      "evidence": [
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "本资料用于试点知识库，由作者现有工程代码和测试整理，不是平台实际处理后的成果。"
+        },
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "它来自作者现有微信小程序的 README、`utils/random.js`、`pages/game/game.js` 与相关测试，不是外部企业提供的数据，也不代表实际用户反馈。"
+        }
+      ],
+      "elapsed_ms": 4557,
+      "review_status": "matches_reference",
+      "review_note": "Codex 逐题对照参考答案及两份资料，核心答案一致。"
+    },
+    {
+      "id": "unknown-01",
+      "kind": "unanswerable",
+      "question": "一按即定现在有多少真实用户？",
+      "reference_answer": "资料未提供实际用户数量，不应给出数字。",
+      "expected_document": null,
+      "model_mode": "ai",
+      "reply": "现有试点资料没有「一按即定」的用户量、活跃用户或注册用户数据，因此无法回答真实用户数量。资料仅说明它是微信原生小程序、无需登录且没有后端，这些说明不能推算用户规模；如需用户数据，请另行提供统计记录。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "当前设计无需登录，也没有后端。"
+        }
+      ],
+      "elapsed_ms": 4175,
+      "review_status": "matches_reference",
+      "review_note": "明确说明资料不足，未编造人数、收入、日期、机型或转化率；引用为背景上下文，不是数据不存在的独立证明。"
+    },
+    {
+      "id": "unknown-02",
+      "kind": "unanswerable",
+      "question": "小程序一共赚了多少钱？",
+      "reference_answer": "资料未提供收入，不应编造。",
+      "expected_document": null,
+      "model_mode": "ai",
+      "reply": "现有资料没有小程序收入、用户量、营收或上架日期等业务数据，因此无法给出赚了多少钱。资料只说明这是微信原生小程序、当前设计无需登录也没有后端。如需收入数据仍需另行提供财务或运营记录。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "当前设计无需登录，也没有后端。"
+        }
+      ],
+      "elapsed_ms": 4082,
+      "review_status": "matches_reference",
+      "review_note": "明确说明资料不足，未编造人数、收入、日期、机型或转化率；引用为背景上下文，不是数据不存在的独立证明。"
+    },
+    {
+      "id": "unknown-03",
+      "kind": "unanswerable",
+      "question": "一按即定在哪一天通过微信审核上架？",
+      "reference_answer": "资料未给出审核上架日期，不应编造。",
+      "expected_document": null,
+      "model_mode": "ai",
+      "reply": "目前资料中没有「一按即定」通过微信审核或上架的日期记录，无法给出具体日期。建议你在微信公众平台的小程序版本管理或审核记录中查看实际状态。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "写入真实用户反馈或上线状态时应另行提供记录。"
+        }
+      ],
+      "elapsed_ms": 4619,
+      "review_status": "matches_reference",
+      "review_note": "明确说明资料不足，未编造人数、收入、日期、机型或转化率；引用为背景上下文，不是数据不存在的独立证明。"
+    },
+    {
+      "id": "unknown-04",
+      "kind": "unanswerable",
+      "question": "所有型号手机都能稳定运行吗？",
+      "reference_answer": "资料未证实所有设备兼容性，不应保证。",
+      "expected_document": null,
+      "model_mode": "ai",
+      "reply": "资料未覆盖具体手机型号的兼容性或真实设备稳定性结论，因此无法确认“所有型号都能稳定运行”。现有工程测试涵盖随机算法、任务分配、触点集合稳定判定、结果页导航失败重试、重复导航防护和多轮页面栈稳定性；若遇到真实设备异常，需收集实际环境与复现步骤后排查。",
+      "evidence": [
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "这些是当前工程的测试性质；如遇真实用户设备异常，仍需收集实际环境与复现步骤，不应直接假设所有设备上都无故障。"
+        },
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "本资料用于新平台的试点知识库。它来自作者现有微信小程序的 README、`utils/random.js`、`pages/game/game.js` 与相关测试，不是外部企业提供的数据，也不代表实际用户反馈。"
+        }
+      ],
+      "elapsed_ms": 4204,
+      "review_status": "matches_reference",
+      "review_note": "明确说明资料不足，未编造人数、收入、日期、机型或转化率；引用为背景上下文，不是数据不存在的独立证明。"
+    },
+    {
+      "id": "unknown-05",
+      "kind": "unanswerable",
+      "question": "昨天某位用户遇到的真实导航错误是哪部手机造成的？",
+      "reference_answer": "没有该真实用户反馈，不能判断。",
+      "expected_document": null,
+      "model_mode": "ai",
+      "reply": "现有资料无法确定昨天那位真实用户使用的手机型号，也没有相关机型记录；如需排查，请提供该用户的实际设备信息与复现步骤。",
+      "evidence": [
+        {
+          "document_id": 2,
+          "title": "工程与测试.md",
+          "excerpt": "如遇真实用户设备异常，仍需收集实际环境与复现步骤，不应直接假设所有设备上都无故障。"
+        },
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "写入真实用户反馈或上线状态时应另行提供记录。"
+        }
+      ],
+      "elapsed_ms": 4131,
+      "review_status": "matches_reference",
+      "review_note": "明确说明资料不足，未编造人数、收入、日期、机型或转化率；引用为背景上下文，不是数据不存在的独立证明。"
+    },
+    {
+      "id": "unknown-06",
+      "kind": "unanswerable",
+      "question": "公司内部的用户转化率是多少？",
+      "reference_answer": "资料没有公司内部数据，不应编造。",
+      "expected_document": null,
+      "model_mode": "ai",
+      "reply": "现有项目文档未包含公司内部用户转化率数据。文档只说明这是一款微信原生小程序，当前无登录、无后端；用户量、营收、上架日期或设备结论均未知。如需准确答案，请提供正式业务数据来源。",
+      "evidence": [
+        {
+          "document_id": 1,
+          "title": "产品规则.md",
+          "excerpt": "当前设计无需登录，也没有后端。"
+        }
+      ],
+      "elapsed_ms": 3733,
+      "review_status": "matches_reference",
+      "review_note": "明确说明资料不足，未编造人数、收入、日期、机型或转化率；引用为背景上下文，不是数据不存在的独立证明。"
+    }
+  ],
+  "limitations": [
+    "固定项目内题集，不代表生产准确率。语义判断为 Codex 辅助复核，非作者人工签字或独立裁判。",
+    "FastAPI 使用 TestClient 调用业务路由，供应商使用真实 HTTP；本次没有重测浏览器与容器部署。",
+    "与历史人工评分的裁判口径不同，不计算自动准确率涨跌；历史无可比延迟和金额基线。",
+    "原交付 ZIP 为此前的离线验收版本，本次追加报告独立交付，没有覆盖该 ZIP。"
+  ]
+}

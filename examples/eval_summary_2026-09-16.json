@@ -1,0 +1,32 @@
+{
+  "evaluated_at": "2026-09-16",
+  "model": "deepseek-flash (DeepSeek V4.1 Flash)",
+  "fixture": "examples/eval_cases.json",
+  "run_scope": {
+    "total": 36,
+    "answerable": 30,
+    "deliberately_unanswerable": 6
+  },
+  "system_result": {
+    "model_mode_ai": 36,
+    "model_mode_unavailable": 0,
+    "responses_with_validated_document_evidence": 36
+  },
+  "manual_review": {
+    "answerable_core_answer_matches_reference": 30,
+    "unanswerable_did_not_invent_requested_value_or_event": 6,
+    "reviewer": "project author with Codex assistance"
+  },
+  "fixed_bad_cases": [
+    "valid assignment totals no longer imply all other task requirements passed",
+    "unknown user, revenue, release-date and device facts are stated as unknown",
+    "transient provider failures and documented empty JSON content receive one bounded retry",
+    "provider traces use safe error codes and never store response bodies or credentials"
+  ],
+  "limitations": [
+    "This is one fixed-set regression run, not a production accuracy claim.",
+    "Document substring validation proves quotation presence, while relevance still requires reviewer judgment.",
+    "No real-user efficiency or business outcome has been measured yet.",
+    "Full raw responses remain local under ignored work/ because they are development artifacts."
+  ]
+}

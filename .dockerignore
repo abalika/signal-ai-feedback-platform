@@ -1,0 +1,14 @@
+.git
+.github
+app/node_modules
+app/dist
+app/.env.local
+server/.env
+server/.venv
+server/__pycache__
+server/.pytest_cache
+server/data
+work
+delivery
+runtime
+*.pyc

@@ -1,0 +1,258 @@
+{
+  "classification": "verified_product_facts_and_deliberate_unknowns",
+  "note": "This is a future AI evaluation fixture, not a report of model performance.",
+  "cases": [
+    {
+      "id": "known-01",
+      "kind": "answerable",
+      "question": "支持哪些玩法？",
+      "reference_answer": "四种玩法：选一个人、排顺序、随机分组、分配任务。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-02",
+      "kind": "answerable",
+      "question": "选一个人的逻辑是什么？",
+      "reference_answer": "从当前所有参与触点中随机选择一位。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-03",
+      "kind": "answerable",
+      "question": "排顺序会做什么？",
+      "reference_answer": "对参与者生成随机顺序。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-04",
+      "kind": "answerable",
+      "question": "随机分组时组间人数最多差多少？",
+      "reference_answer": "最多相差一人。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-05",
+      "kind": "answerable",
+      "question": "分配任务时任务名称能留空吗？",
+      "reference_answer": "不能，任务名称必须填写。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-06",
+      "kind": "answerable",
+      "question": "分配任务时任务人数能是零吗？",
+      "reference_answer": "不能，必须是正整数。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-07",
+      "kind": "answerable",
+      "question": "任务数量的合计要满足什么条件？",
+      "reference_answer": "所有任务人数总和必须严格等于当前参与者触点数量。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-08",
+      "kind": "answerable",
+      "question": "最多能设置多少项任务？",
+      "reference_answer": "最多六项。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-09",
+      "kind": "answerable",
+      "question": "能把所有任务删除吗？",
+      "reference_answer": "不能，至少保留一项。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-10",
+      "kind": "answerable",
+      "question": "3 人的任务人数配置为 2 人加 1 人是否符合人数规则？",
+      "reference_answer": "符合，合计为 3 人；任务名称仍须填写。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-11",
+      "kind": "answerable",
+      "question": "3 人的任务人数配置为 2 人加 2 人是否符合人数规则？",
+      "reference_answer": "不符合，合计为 4 人，与参与者数量不一致。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-12",
+      "kind": "answerable",
+      "question": "新增参与触点会怎样影响倒计时？",
+      "reference_answer": "程序重新等待约 680 毫秒，稳定后重新进入 3 秒倒计时。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-13",
+      "kind": "answerable",
+      "question": "移除参与触点会怎样影响倒计时？",
+      "reference_answer": "程序重新等待约 680 毫秒，稳定后重新进入 3 秒倒计时。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-14",
+      "kind": "answerable",
+      "question": "只是移动已有手指会重置倒计时吗？",
+      "reference_answer": "不会，只更新位置，不重置倒计时。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-15",
+      "kind": "answerable",
+      "question": "触点集合稳定后倒计时是多久？",
+      "reference_answer": "3 秒。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-16",
+      "kind": "answerable",
+      "question": "结果页显示什么？",
+      "reference_answer": "显示参与者数量和每个触点的结果标签。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-17",
+      "kind": "answerable",
+      "question": "结果页能再来一次吗？",
+      "reference_answer": "可以。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-18",
+      "kind": "answerable",
+      "question": "结果页能分享结果吗？",
+      "reference_answer": "可以。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-19",
+      "kind": "answerable",
+      "question": "结果页能回首页吗？",
+      "reference_answer": "可以。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-20",
+      "kind": "answerable",
+      "question": "小程序当前要登录才能玩吗？",
+      "reference_answer": "不需要登录。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-21",
+      "kind": "answerable",
+      "question": "小程序当前有后端服务吗？",
+      "reference_answer": "没有后端。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-22",
+      "kind": "answerable",
+      "question": "昨天的结果能够从历史记录中恢复吗？",
+      "reference_answer": "当前没有持久化历史记录，结果只存在当前会话，无法保证找回昨天的结果。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-23",
+      "kind": "answerable",
+      "question": "当前结果暂存在哪里？",
+      "reference_answer": "当前小程序会话的 globalData。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "known-24",
+      "kind": "answerable",
+      "question": "工程用什么命令运行测试？",
+      "reference_answer": "npm test。",
+      "expected_document": "工程与测试.md"
+    },
+    {
+      "id": "known-25",
+      "kind": "answerable",
+      "question": "测试覆盖任务分配的人数条件吗？",
+      "reference_answer": "覆盖精确任务分配。",
+      "expected_document": "工程与测试.md"
+    },
+    {
+      "id": "known-26",
+      "kind": "answerable",
+      "question": "测试覆盖触点集合稳定判定吗？",
+      "reference_answer": "覆盖。",
+      "expected_document": "工程与测试.md"
+    },
+    {
+      "id": "known-27",
+      "kind": "answerable",
+      "question": "结果页导航失败后是否有重试测试？",
+      "reference_answer": "有，流程测试验证允许重试。",
+      "expected_document": "工程与测试.md"
+    },
+    {
+      "id": "known-28",
+      "kind": "answerable",
+      "question": "测试是否防止重复导航造成多次跳转？",
+      "reference_answer": "是，覆盖重复导航防护。",
+      "expected_document": "工程与测试.md"
+    },
+    {
+      "id": "known-29",
+      "kind": "answerable",
+      "question": "连续多轮使用时页面栈会一直增长吗？",
+      "reference_answer": "流程测试验证页面栈不会持续增长；真实设备仍需单独验证。",
+      "expected_document": "工程与测试.md"
+    },
+    {
+      "id": "known-30",
+      "kind": "answerable",
+      "question": "这个平台的文档资料来自谁？",
+      "reference_answer": "来自作者现有微信小程序的代码与测试，不是外部企业数据。",
+      "expected_document": "产品规则.md"
+    },
+    {
+      "id": "unknown-01",
+      "kind": "unanswerable",
+      "question": "一按即定现在有多少真实用户？",
+      "reference_answer": "资料未提供实际用户数量，不应给出数字。",
+      "expected_document": null
+    },
+    {
+      "id": "unknown-02",
+      "kind": "unanswerable",
+      "question": "小程序一共赚了多少钱？",
+      "reference_answer": "资料未提供收入，不应编造。",
+      "expected_document": null
+    },
+    {
+      "id": "unknown-03",
+      "kind": "unanswerable",
+      "question": "一按即定在哪一天通过微信审核上架？",
+      "reference_answer": "资料未给出审核上架日期，不应编造。",
+      "expected_document": null
+    },
+    {
+      "id": "unknown-04",
+      "kind": "unanswerable",
+      "question": "所有型号手机都能稳定运行吗？",
+      "reference_answer": "资料未证实所有设备兼容性，不应保证。",
+      "expected_document": null
+    },
+    {
+      "id": "unknown-05",
+      "kind": "unanswerable",
+      "question": "昨天某位用户遇到的真实导航错误是哪部手机造成的？",
+      "reference_answer": "没有该真实用户反馈，不能判断。",
+      "expected_document": null
+    },
+    {
+      "id": "unknown-06",
+      "kind": "unanswerable",
+      "question": "公司内部的用户转化率是多少？",
+      "reference_answer": "资料没有公司内部数据，不应编造。",
+      "expected_document": null
+    }
+  ]
+}
