@@ -13,11 +13,11 @@ import os
 import re
 import sqlite3
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Protocol
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 try:  # Keep `uvicorn main:app` usable when launched from server/ directly.
     from dotenv import load_dotenv
@@ -45,13 +45,23 @@ if load_dotenv is not None and os.getenv("FEEDBACK_OFFLINE") != "1":
 
 @dataclass(frozen=True)
 class AISettings:
-    api_key: str
+    api_key: str = field(repr=False)
     base_url: str
     model: str
 
     @property
     def configured(self) -> bool:
         return bool(self.api_key and self.base_url and self.model)
+
+
+class NoCredentialRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Never forward Authorization to a redirect destination.
+        return None
+
+
+def urlopen(request, *, timeout):
+    return build_opener(NoCredentialRedirect()).open(request, timeout=timeout)
 
 
 def get_ai_settings() -> AISettings:

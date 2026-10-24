@@ -25,6 +25,7 @@ DENIED_SUFFIXES = {".db", ".sqlite3", ".sqlite", ".pyc", ".pyo"}
 def source_allowed(relative):
     path = Path(relative)
     return (not DENIED_PARTS.intersection(path.parts) and path.suffix.lower() not in DENIED_SUFFIXES
+            and path.name != 'model-settings.json' and not path.name.startswith('.model-settings-')
             and (not path.name.startswith(".env") or path.name == ".env.example"))
 
 

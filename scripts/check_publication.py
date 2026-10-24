@@ -24,6 +24,7 @@ def inspect_file(relative, data):
     path = Path(relative)
     issues = []
     if (DENIED_PARTS.intersection(path.parts) or path.suffix.lower() in DENIED_SUFFIXES
+            or path.name == 'model-settings.json' or path.name.startswith('.model-settings-')
             or (path.name.startswith('.env') and path.name != '.env.example')):
         issues.append("excluded_local_file")
     if b'\0' in data:

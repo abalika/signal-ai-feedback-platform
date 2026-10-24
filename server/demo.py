@@ -3,8 +3,12 @@
 import json
 from pathlib import Path
 
-from .ai import TOOL_PLAN_PROMPT
-from .db import utc_now
+try:
+    from .ai import TOOL_PLAN_PROMPT
+    from .db import utc_now
+except ImportError:  # `cd server; uvicorn main:app`
+    from ai import TOOL_PLAN_PROMPT
+    from db import utc_now
 
 ROOT = Path(__file__).resolve().parents[1]
 

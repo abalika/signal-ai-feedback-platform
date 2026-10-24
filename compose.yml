@@ -27,8 +27,8 @@ services:
 
   web:
     build:
-      context: app
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: app/Dockerfile
     ports:
       - "127.0.0.1:5173:80"
     depends_on:

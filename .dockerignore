@@ -12,3 +12,7 @@ work
 delivery
 runtime
 *.pyc
+data
+backups
+**/model-settings.json
+**/.model-settings-*

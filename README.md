@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/abalika/signal-ai-feedback-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/abalika/signal-ai-feedback-platform/actions/workflows/ci.yml)
 
-将产品资料、用户反馈、带引用的 AI 建议与人工审核后的工单接成一条可追踪流程。支持无需 API key 的离线演示，也支持在后端配置 OpenAI-compatible 模型服务。
+将产品资料、用户反馈、带引用的 AI 建议与人工审核后的工单接成一条可追踪流程。支持无需 API key 的离线演示，也支持在网页填写 API key 接入 OpenAI-compatible 模型服务。
 
 **React 19 · TypeScript · FastAPI · SQLite · BM25 · Docker Compose**
 
@@ -39,13 +39,13 @@ flowchart LR
 
 | 范围 | 结果 | 含义 |
 |---|---|---|
-| 2026-10-24 后端自动化 | 96 项通过 | 输入边界、项目隔离、故障、事务、审批幂等、交付和隐私门禁 |
+| 2026-10-24 后端自动化 | 127 项通过 | 输入边界、项目隔离、故障、事务、审批幂等、交付、网页配置和隐私门禁 |
 | 前端请求测试 | 7 项通过，lint/build 通过 | 超时、网络、HTTP 和异常响应处理 |
 | 离线固定回归 | 36/36 流程、30/30 检索 Recall@1 | 同一小型固定题集，不合并计为 66 道独立题 |
 | 2026-10-21 真实模型复测 | 36/36 分析可用；35 符合参考、1 待确认 | Codex 辅助逐题复核，尚非作者签字的人工准确率 |
 | 真实调用观测 | 72 次请求，58,887 token，整条分析 P95 5.045 秒 | 当次本机运行；费用缺少网关价格，记为未知 |
 
-未知题 6/6 没有编造所问数字、日期或设备结论。`known-25` 对具体人数条件的测试覆盖回答保守，参考答案粒度也有限，保留待复核。小型项目内题集不代表生产准确率；本次发布审查没有重新调用付费模型。
+未知题 6/6 没有编造所问数字、日期或设备结论。`known-25` 对具体人数条件的测试覆盖回答保守，参考答案粒度也有限，保留待复核。小型项目内题集不代表生产准确率；本轮网页设置验收仅追加 1 题真实网关集成调用，未重跑 36 题或更新语义成绩。
 
 [真实复测报告](docs/真实接口复测-20261021.md) · [逐题 HTML](docs/reports/live-retest-20261021.html) · [机器汇总](examples/live_eval_summary_2026-10-21.json) · [最终公开审查](docs/公开发布审查-20261024.md)
 
@@ -88,13 +88,21 @@ GitHub Actions 在干净环境中执行依赖安装、前端测试、lint/build�
 
 ## 可选：接入真实模型
 
-参照 `server/.env.example` 在本机新建 `server/.env`，填写自己的 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 和 `OPENAI_MODEL`，再运行：
+无需编辑配置文件：启动网页后，点击右上角 **模型设置**，填写 Base URL、模型名称、API key，依次点击 **测试连接 → 保存并启用**。当前服务立即使用新配置，无需重启。
+
+![网页模型设置](docs/assets/model-settings.png)
+
+默认密钥仅保留在本次后端进程中；可选“在本机记住”，写入数据库同目录的 `model-settings.json`，重启默认启动器后恢复。文件不加密，只适合本机单用户环境，已从 Git、容器构建和交付包排除。页面不回显已保存密钥，也不主动写入浏览器存储。可随时切回离线演示或删除网页配置。
+
+更换接口地址需要重新输入密钥，避免误发已有凭证。测试只发送一条 32 token 上限的短请求，不自动重试；测试通过后五分钟内才能保存，修改连接信息后必须重测。详见 [模型设置说明与验收](docs/网页模型设置.md)。
+
+仍支持环境配置：参照 `server/.env.example` 在本机新建 `server/.env`，填写自己的 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 和 `OPENAI_MODEL`，再运行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start.ps1 -Live -Port 8012
 ```
 
-真实模式使用独立的 `data/local-live.db`。密钥仅由后端读取，不进入前端。更换配置后重启服务。先用 `examples/run_eval.py --api-url http://127.0.0.1:8012 --limit 3` 小批量采集；该命令会产生真实模型用量，评分栏留待核对。
+命令行真实模式使用独立的 `data/local-live.db`；网页切换模式继续使用当前数据库，旧回放记录仍明确标为演示。网页配置优先于环境配置；编辑 `.env` 后需要重启，而网页保存立即生效。先用 `examples/run_eval.py --api-url http://127.0.0.1:8012 --limit 3` 小批量采集；该命令会产生真实模型用量，评分栏留待核对。
 
 服务定位为本机单用户作品演示，尚无登录和多租户权限，默认只绑定 `127.0.0.1`。公开的是代码仓库；不应将无鉴权 API 直接暴露到公网。
 

@@ -26,3 +26,5 @@ backups/
 *.key
 *.p12
 *.pfx
+model-settings.json
+.model-settings-*

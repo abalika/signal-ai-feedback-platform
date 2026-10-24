@@ -37,7 +37,6 @@ try:  # Package imports for `uvicorn server.main:app` and test execution.
         as_text,
         build_recommendation_prompt,
         build_tool_plan_prompt,
-        get_ai_settings,
         model_trace_fields,
         parse_json_object,
         retrieve_documents,
@@ -48,6 +47,7 @@ try:  # Package imports for `uvicorn server.main:app` and test execution.
     )
     from .db import Database, insert_trace, utc_now
     from .retrieval import retrieval_diagnostics
+    from .model_settings import ModelConfig, install_routes
     from .schemas import (
         AnalysisOut,
         DocumentCreate,
@@ -79,7 +79,6 @@ except ImportError:  # Direct-module compatibility for `cd server; uvicorn main:
         as_text,
         build_recommendation_prompt,
         build_tool_plan_prompt,
-        get_ai_settings,
         model_trace_fields,
         parse_json_object,
         retrieve_documents,
@@ -90,6 +89,7 @@ except ImportError:  # Direct-module compatibility for `cd server; uvicorn main:
     )
     from db import Database, insert_trace, utc_now  # type: ignore[no-redef]
     from retrieval import retrieval_diagnostics  # type: ignore[no-redef]
+    from model_settings import ModelConfig, install_routes
     from schemas import (  # type: ignore[no-redef]
         AnalysisOut,
         DocumentCreate,
@@ -118,6 +118,8 @@ def create_app(
     ai_provider: AIProvider | None = None,
     offline: bool = False,
     static_dir: str | Path | None = None,
+    restore_saved_model: bool = False,
+    connection_tester=None,
 ) -> FastAPI:
     """Build an API instance with isolated persistence and an injectable model."""
 
@@ -125,16 +127,27 @@ def create_app(
         configured_path = os.getenv("DATABASE_PATH", os.getenv("DB_PATH", "")).strip()
         db_path = configured_path or (Path(__file__).resolve().parent / "data" / "app.db")
     db = Database(db_path)
-    if offline:
+    try:
         from .demo import ReplayProvider
-        provider = ReplayProvider()
-    else:
-        provider = ai_provider or OpenAICompatibleProvider()
+    except ImportError:
+        from demo import ReplayProvider
+    replay_provider = ReplayProvider()
+    live_provider = ai_provider or OpenAICompatibleProvider()
+    config = ModelConfig(None if str(db_path) == ':memory:' else Path(db_path).parent / 'model-settings.json')
+    if restore_saved_model and config.remembered:
+        offline = not config.saved_enabled
 
     app = FastAPI(title="AI Feedback Ticket API", version="0.1.0")
     app.state.db = db
-    app.state.ai_provider = provider
+    app.state.ai_provider = replay_provider if offline else live_provider
     app.state.offline = offline
+    app.state.model_config = config
+
+    def activate_model_mode(use_offline):
+        app.state.offline = use_offline
+        app.state.ai_provider = replay_provider if use_offline else live_provider
+
+    install_routes(app, config, activate_model_mode, connection_tester)
 
     @app.exception_handler(sqlite3.Error)
     async def database_error(_request, _exc):
@@ -171,9 +184,9 @@ def create_app(
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:
-        if offline:
+        if app.state.offline:
             return {"status": "ok", "ai_configured": False, "demo_mode": True, "mode": "offline_replay"}
-        return {"status": "ok", "ai_configured": get_ai_settings().configured}
+        return {"status": "ok", "ai_configured": config.current().configured}
 
     @app.get("/api/projects", response_model=list[ProjectOut])
     def list_projects() -> list[ProjectOut]:
@@ -262,7 +275,10 @@ def create_app(
             ),
         )
 
-        settings = AISettings("offline", "offline://replay", "fixture-replay-v1") if offline else get_ai_settings()
+        with config.lock:
+            offline_mode = app.state.offline
+            provider = app.state.ai_provider
+            settings = AISettings("offline", "offline://replay", "fixture-replay-v1") if offline_mode else config.current()
         if not fallback_documents:
             reason = "该项目暂无可用于核验的文档。"
             insert_trace(db, feedback_id, "error", reason)
@@ -273,7 +289,8 @@ def create_app(
             result = unavailable_analysis(feedback_id, reason)
         else:
             result = _run_agent_analysis(
-                app=app,
+                provider=provider,
+                offline_mode=offline_mode,
                 db=db,
                 feedback=feedback,
                 documents=documents,
@@ -342,7 +359,7 @@ def create_app(
             ).fetchone()
             if analysis is None:
                 raise HTTPException(status_code=409, detail="analyze feedback before approval")
-            if analysis["model_mode"] != "ai" and not (offline and analysis["model_mode"] == "demo"):
+            if analysis["model_mode"] != "ai" and not (app.state.offline and analysis["model_mode"] == "demo"):
                 raise HTTPException(status_code=409, detail="only a completed AI analysis can be approved")
             try:
                 persisted_evidence = json.loads(analysis["evidence_json"])
@@ -621,7 +638,8 @@ def _safe_failure_code(exc: Exception) -> str:
 
 def _run_agent_analysis(
     *,
-    app: FastAPI,
+    provider: AIProvider,
+    offline_mode: bool,
     db: Database,
     feedback: sqlite3.Row,
     documents: list[sqlite3.Row],
@@ -631,7 +649,7 @@ def _run_agent_analysis(
 ) -> AnalysisOut:
     """Run the bounded planner -> tool -> recommendation workflow."""
 
-    model_step = "replay" if app.state.offline else "model"
+    model_step = "replay" if offline_mode else "model"
     selected = fallback_documents
     tool_name = "search_documents"
     tool_result: dict[str, Any] = {
@@ -647,7 +665,7 @@ def _run_agent_analysis(
     }
     planner_started = time.perf_counter()
     try:
-        raw_plan = app.state.ai_provider.complete(
+        raw_plan = provider.complete(
             system_prompt=TOOL_PLAN_PROMPT,
             user_prompt=build_tool_plan_prompt(feedback, documents),
             settings=settings,
@@ -687,7 +705,7 @@ def _run_agent_analysis(
     }
     recommendation_started = time.perf_counter()
     try:
-        raw = app.state.ai_provider.complete(
+        raw = provider.complete(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=build_recommendation_prompt(
                 feedback,
@@ -721,7 +739,7 @@ def _run_agent_analysis(
             proposed_task=proposed_task,
             evidence=evidence,
             needs_review=bool(parsed.get("needs_review", True)) or bool(rejected_citations),
-            model_mode="demo" if app.state.offline else "ai",
+            model_mode="demo" if offline_mode else "ai",
         )
         model_trace.update(
             {
@@ -747,7 +765,7 @@ def _run_agent_analysis(
         )
 
 
-app = create_app()
+app = create_app(restore_saved_model=True)
 
 
 if __name__ == "__main__":  # pragma: no cover - convenience for local demos

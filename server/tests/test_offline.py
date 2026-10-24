@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -7,6 +10,27 @@ from server.demo import seed_demo
 from server.main import create_app
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_direct_module_startup_and_offline_replay(tmp_path):
+    code = '''
+import main
+from demo import seed_demo
+from fastapi.testclient import TestClient
+app = main.create_app(offline=True)
+seed_demo(app.state.db)
+client = TestClient(app)
+assert client.get('/api/model-settings').status_code == 200
+row = next(row for row in client.get('/api/feedback').json() if 'known-07' in row['source'])
+result = client.post(f"/api/feedback/{row['id']}/analyze")
+assert result.status_code == 200 and result.json()['model_mode'] == 'demo'
+'''
+    result = subprocess.run(
+        [sys.executable, '-c', code], cwd=ROOT / 'server',
+        env={**os.environ, 'FEEDBACK_OFFLINE': '1', 'DATABASE_PATH': str(tmp_path / 'direct.db')},
+        capture_output=True, timeout=20,
+    )
+    assert result.returncode == 0, result.stderr.decode(errors='replace')
 
 
 def test_offline_complete_workflow_without_network(monkeypatch, tmp_path):

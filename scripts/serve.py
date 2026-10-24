@@ -11,10 +11,12 @@ sys.path.insert(0, str(ROOT))
 def build_app(*, live=False, database=None, static_dir=None):
     if not live:
         os.environ["FEEDBACK_OFFLINE"] = "1"
+    else:
+        os.environ.pop("FEEDBACK_OFFLINE", None)
     path = Path(database) if database else ROOT / "data" / ("local-live.db" if live else "offline-demo.db")
     os.environ["DATABASE_PATH"] = str(path.resolve())
     from server.main import create_app
-    app = create_app(path, offline=not live, static_dir=static_dir or ROOT / "app/dist")
+    app = create_app(path, offline=not live, static_dir=static_dir or ROOT / "app/dist", restore_saved_model=True)
     if not live:
         from server.demo import seed_demo
         seed_demo(app.state.db)

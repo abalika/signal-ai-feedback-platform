@@ -4,6 +4,7 @@ import './App.css'
 import { ApiError, request } from './api'
 import { AnalysisInspector } from './components/AnalysisInspector'
 import { EvaluationCenter } from './components/EvaluationCenter'
+import { ModelSettings } from './components/ModelSettings'
 import { DocumentsView, FeedbackView, Overview, TicketsView } from './components/ProjectViews'
 import { Icon, Modal } from './components/Shared'
 import type { Analysis, Document, Feedback, Health, Metrics, ModalKey, NavKey, Project, Ticket, Trace } from './types'
@@ -24,6 +25,7 @@ function App() {
   const [search, setSearch] = useState('')
   const [feedbackSearch, setFeedbackSearch] = useState('')
   const [modal, setModal] = useState<ModalKey>(null)
+  const [modelSettingsOpen, setModelSettingsOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [projectLoading, setProjectLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -318,7 +320,7 @@ function App() {
       </aside>
 
       <div className="main-shell">
-        <header className="topbar"><div className="breadcrumb"><Icon name="folder" size={16} /><span>{activeProject?.name ?? '工作空间'}</span><span className="crumb-slash">/</span><strong>{navItems.find((item) => item.key === nav)?.label}</strong></div><div className="topbar-actions"><form className="global-search" role="search" onSubmit={(event) => { event.preventDefault(); setFeedbackSearch(search.trim()); setNav('feedback') }}><Icon name="search" size={16} /><input aria-label="搜索反馈内容或来源" placeholder="搜索反馈…" value={search} onChange={(event) => setSearch(event.target.value)} /><button type="submit" aria-label="搜索反馈"><Icon name="arrow" size={15} /></button></form><div className={`service-status ${health ? (aiReady ? 'ready' : 'warning') : 'offline'}`}><span className="status-pip" />{health ? (health.demo_mode ? '离线固定回放' : aiReady ? 'AI 已配置' : 'AI 未配置') : '服务未连接'}</div></div></header>
+        <header className="topbar"><div className="breadcrumb"><Icon name="folder" size={16} /><span>{activeProject?.name ?? '工作空间'}</span><span className="crumb-slash">/</span><strong>{navItems.find((item) => item.key === nav)?.label}</strong></div><div className="topbar-actions"><form className="global-search" role="search" onSubmit={(event) => { event.preventDefault(); setFeedbackSearch(search.trim()); setNav('feedback') }}><Icon name="search" size={16} /><input aria-label="搜索反馈内容或来源" placeholder="搜索反馈…" value={search} onChange={(event) => setSearch(event.target.value)} /><button type="submit" aria-label="搜索反馈"><Icon name="arrow" size={15} /></button></form><button type="button" className="model-settings-trigger secondary-button" disabled={Boolean(actionLoading)} onClick={() => setModelSettingsOpen(true)}><Icon name="settings" size={16} />模型设置</button><div className={`service-status ${health ? (aiReady ? 'ready' : 'warning') : 'offline'}`}><span className="status-pip" />{health ? (health.demo_mode ? '离线固定回放' : aiReady ? 'AI 已配置' : 'AI 未配置') : '服务未连接'}</div></div></header>
 
         <main className="workspace" id="main-content" tabIndex={-1}>
           <div className="mobile-nav"><div className="mobile-project-bar"><strong>Signal.</strong><select disabled={Boolean(actionLoading)} className="mobile-project-select" aria-label="当前项目" value={activeProjectId ?? ''} onChange={(event) => setActiveProjectId(Number(event.target.value))}><option value="" disabled>选择项目</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select><button type="button" className="icon-button" aria-label="创建项目" onClick={() => setModal('project')}><Icon name="plus" size={18} /></button></div><nav aria-label="移动工作区导航">{navItems.map((item) => <button type="button" key={item.key} aria-current={nav === item.key ? 'page' : undefined} className={nav === item.key ? 'active' : ''} onClick={() => setNav(item.key)}><Icon name={item.icon} size={18} /><span>{item.label.replace('工作台总览', '总览').replace('反馈收件箱', '反馈').replace('产品资料库', '资料').replace('技术工单', '工单').replace('评测中心', '评测')}</span></button>)}</nav></div>
@@ -336,6 +338,11 @@ function App() {
       </div>
 
       {modal && <Modal title={modal === 'project' ? '创建项目空间' : modal === 'document' ? '添加产品资料' : '录入用户反馈'} description={modal === 'project' ? '每个项目拥有独立的资料、反馈与工单。' : modal === 'document' ? '只添加你确认可以使用的产品资料，AI 只会引用当前项目内容。' : '保留用户原话，方便之后核对 AI 的判断依据。'} onClose={() => setModal(null)}><form className="modal-form" onSubmit={modal === 'project' ? handleCreateProject : modal === 'document' ? handleCreateDocument : handleCreateFeedback}>{error && <div className="error-banner" role="alert">{error}</div>}{modal === 'project' && <><label>项目名称<input name="name" maxLength={120} placeholder="例如：一按即定 · 用户反馈" autoFocus required /></label><label>项目描述<textarea name="description" maxLength={2000} rows={3} placeholder="说明这个项目服务的产品或场景" /></label></>}{modal === 'document' && <><label>资料标题<input name="title" maxLength={200} placeholder="例如：小程序使用说明 v1.2" autoFocus required /></label><label>资料正文<textarea name="content" maxLength={100000} rows={8} placeholder="粘贴产品说明、版本记录、常见问题或接口约定…" required /></label></>}{modal === 'feedback' && <><label>反馈来源<input name="source" maxLength={100} placeholder="例如：微信用户 / 测试同学 / 体验记录" autoFocus required /></label><label>反馈内容<textarea name="content" maxLength={20000} rows={8} placeholder="记录用户遇到的问题、复现步骤或期望…" required /></label></>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setModal(null)}>取消</button><button type="submit" className="primary-button" disabled={actionLoading === modal}>{actionLoading === modal ? '保存中…' : '保存并继续'}</button></div></form></Modal>}
+      {modelSettingsOpen && <ModelSettings onClose={() => setModelSettingsOpen(false)} onChanged={async () => {
+        setHealth(await request<Health>('/api/health'))
+        setReviewConfirmed(false)
+        if (selectedFeedbackId) await loadFeedbackDetails(selectedFeedbackId)
+      }} />}
       {toast && <div className="toast" role="status"><span className="toast-check"><Icon name="check" size={14} /></span>{toast}</div>}
     </div>
   )
