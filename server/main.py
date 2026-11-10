@@ -19,12 +19,21 @@ import json
 import os
 import sqlite3
 import time
+from contextlib import contextmanager
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+WORKBENCH_DEV_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+)
 
 try:  # Package imports for `uvicorn server.main:app` and test execution.
     from .ai import (
@@ -39,14 +48,13 @@ try:  # Package imports for `uvicorn server.main:app` and test execution.
         build_tool_plan_prompt,
         model_trace_fields,
         parse_json_object,
-        retrieve_documents,
         run_tool,
         unavailable_analysis,
         validate_tool_plan,
         validated_evidence,
     )
-    from .db import Database, insert_trace, utc_now
-    from .retrieval import retrieval_diagnostics
+    from .db import Database, utc_now
+    from .retrieval import retrieve_with_diagnostics
     from .model_settings import ModelConfig, install_routes
     from .schemas import (
         AnalysisOut,
@@ -81,14 +89,13 @@ except ImportError:  # Direct-module compatibility for `cd server; uvicorn main:
         build_tool_plan_prompt,
         model_trace_fields,
         parse_json_object,
-        retrieve_documents,
         run_tool,
         unavailable_analysis,
         validate_tool_plan,
         validated_evidence,
     )
-    from db import Database, insert_trace, utc_now  # type: ignore[no-redef]
-    from retrieval import retrieval_diagnostics  # type: ignore[no-redef]
+    from db import Database, utc_now  # type: ignore[no-redef]
+    from retrieval import retrieve_with_diagnostics  # type: ignore[no-redef]
     from model_settings import ModelConfig, install_routes
     from schemas import (  # type: ignore[no-redef]
         AnalysisOut,
@@ -131,7 +138,6 @@ def create_app(
         from .demo import ReplayProvider
     except ImportError:
         from demo import ReplayProvider
-    replay_provider = ReplayProvider()
     live_provider = ai_provider or OpenAICompatibleProvider()
     config = ModelConfig(None if str(db_path) == ':memory:' else Path(db_path).parent / 'model-settings.json')
     if restore_saved_model and config.remembered:
@@ -139,15 +145,14 @@ def create_app(
 
     app = FastAPI(title="AI Feedback Ticket API", version="0.1.0")
     app.state.db = db
-    app.state.ai_provider = replay_provider if offline else live_provider
+    app.state.ai_provider = live_provider
     app.state.offline = offline
     app.state.model_config = config
 
     def activate_model_mode(use_offline):
         app.state.offline = use_offline
-        app.state.ai_provider = replay_provider if use_offline else live_provider
 
-    install_routes(app, config, activate_model_mode, connection_tester)
+    install_routes(app, config, activate_model_mode, connection_tester, dev_origins=WORKBENCH_DEV_ORIGINS)
 
     @app.exception_handler(sqlite3.Error)
     async def database_error(_request, _exc):
@@ -159,12 +164,7 @@ def create_app(
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-        ],
+        allow_origins=WORKBENCH_DEV_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -181,6 +181,27 @@ def create_app(
         if feedback is None:
             raise HTTPException(status_code=404, detail="feedback not found")
         return feedback
+
+    active_feedback: set[int] = set()
+    feedback_lock = Lock()
+
+    @contextmanager
+    def feedback_operation(feedback_id: int):
+        with feedback_lock:
+            if feedback_id in active_feedback:
+                raise HTTPException(409, "这条反馈正在分析，请稍后重试。")
+            active_feedback.add(feedback_id)
+        try:
+            yield
+        finally:
+            with feedback_lock:
+                active_feedback.remove(feedback_id)
+
+    analysis_state_query = """
+        SELECT a.*, EXISTS(SELECT 1 FROM tickets WHERE feedback_id = f.id) AS has_ticket
+        FROM feedback f LEFT JOIN analyses a ON a.feedback_id = f.id
+        WHERE f.id = ?
+    """
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:
@@ -255,43 +276,50 @@ def create_app(
 
     @app.post("/api/feedback/{feedback_id}/analyze", response_model=AnalysisOut)
     def analyze_feedback(feedback_id: int) -> AnalysisOut:
+        with feedback_operation(feedback_id):
+            return run_analysis(feedback_id)
+
+    def run_analysis(feedback_id: int) -> AnalysisOut:
         feedback = require_feedback(feedback_id)
+        previous = db.fetchone(analysis_state_query, (feedback_id,))
+        if previous["has_ticket"]:
+            if previous["updated_at"] is None:
+                raise HTTPException(409, "这条反馈已有工单，且没有历史分析。")
+            return analysis_from_row(previous)
         documents = db.fetchall(
             "SELECT * FROM documents WHERE project_id = ? ORDER BY id DESC", (feedback["project_id"],)
         )
-        fallback_documents = retrieve_documents(documents, feedback["content"])
+        fallback_documents, diagnostics = retrieve_with_diagnostics(documents, feedback["content"])
         selected_ids = [int(row["id"]) for row in fallback_documents]
-        insert_trace(
-            db,
-            feedback_id,
+        traces = [(
             "retrieval",
             json.dumps(
                 {
                     "document_count": len(documents),
                     "selected_document_ids": selected_ids,
-                    **retrieval_diagnostics(documents, feedback["content"]),
+                    **diagnostics,
                 },
                 ensure_ascii=False,
             ),
-        )
+        )]
 
         with config.lock:
             offline_mode = app.state.offline
-            provider = app.state.ai_provider
+            provider = ReplayProvider(feedback["content"]) if offline_mode else app.state.ai_provider
             settings = AISettings("offline", "offline://replay", "fixture-replay-v1") if offline_mode else config.current()
         if not fallback_documents:
             reason = "该项目暂无可用于核验的文档。"
-            insert_trace(db, feedback_id, "error", reason)
+            traces.append(("error", reason))
             result = unavailable_analysis(feedback_id, reason)
         elif not settings.configured:
-            reason = "AI 服务未配置：请设置 OPENAI_API_KEY、OPENAI_BASE_URL 和 OPENAI_MODEL。"
-            insert_trace(db, feedback_id, "error", reason)
+            reason = "AI 服务未配置。请在模型设置中测试并启用连接。"
+            traces.append(("error", reason))
             result = unavailable_analysis(feedback_id, reason)
         else:
             result = _run_agent_analysis(
                 provider=provider,
                 offline_mode=offline_mode,
-                db=db,
+                traces=traces,
                 feedback=feedback,
                 documents=documents,
                 fallback_documents=fallback_documents,
@@ -300,6 +328,10 @@ def create_app(
             )
 
         with db.transaction() as connection:
+            current = connection.execute(analysis_state_query, (feedback_id,)).fetchone()
+            if current["has_ticket"] or current["updated_at"] != previous["updated_at"]:
+                raise HTTPException(409, "分析或工单已被更新，请刷新反馈后重试。")
+            result.updated_at = utc_now()
             connection.execute(
                 """
                 INSERT INTO analyses(
@@ -325,12 +357,16 @@ def create_app(
                     json.dumps([item.model_dump() for item in result.evidence], ensure_ascii=False),
                     int(result.needs_review),
                     result.model_mode,
-                    utc_now(),
+                    result.updated_at,
                 ),
             )
             connection.execute(
                 "UPDATE feedback SET status = 'analyzed' WHERE id = ? AND status = 'new'",
                 (feedback_id,),
+            )
+            connection.executemany(
+                "INSERT INTO traces(feedback_id, step, detail, created_at) VALUES (?, ?, ?, ?)",
+                [(feedback_id, step, detail[:4_000], result.updated_at) for step, detail in traces],
             )
         return result
 
@@ -359,13 +395,13 @@ def create_app(
             ).fetchone()
             if analysis is None:
                 raise HTTPException(status_code=409, detail="analyze feedback before approval")
-            if analysis["model_mode"] != "ai" and not (app.state.offline and analysis["model_mode"] == "demo"):
+            if payload and payload.analysis_updated_at is not None and payload.analysis_updated_at != analysis["updated_at"]:
+                raise HTTPException(409, "分析结果已更新，请刷新后重新核对。")
+            with config.lock:
+                offline_mode = app.state.offline
+            if analysis["model_mode"] != "ai" and not (offline_mode and analysis["model_mode"] == "demo"):
                 raise HTTPException(status_code=409, detail="only a completed AI analysis can be approved")
-            try:
-                persisted_evidence = json.loads(analysis["evidence_json"])
-            except (TypeError, ValueError):
-                persisted_evidence = []
-            if not isinstance(persisted_evidence, list) or not persisted_evidence:
+            if not analysis_from_row(analysis).evidence:
                 raise HTTPException(status_code=409, detail="analysis has no supported evidence")
             if not analysis["proposed_task"].strip():
                 raise HTTPException(status_code=409, detail="analysis has no proposed task")
@@ -412,6 +448,7 @@ def create_app(
                             "title_length": len(title),
                             "reviewer_note_length": len(reviewer_note),
                             "original_proposed_task_length": len(original_proposed_task),
+                            "analysis_updated_at": analysis["updated_at"],
                         },
                         ensure_ascii=False,
                     ),
@@ -541,7 +578,8 @@ def create_app(
 
         analysis_where = " WHERE f.project_id = ?" if project_id is not None else ""
         analysis_rows = db.fetchall(
-            "SELECT a.model_mode, COUNT(*) AS value FROM analyses a "
+            "SELECT a.model_mode, COUNT(*) AS value, COUNT(t.id) AS ticket_count FROM analyses a "
+            "LEFT JOIN tickets t ON t.feedback_id = a.feedback_id "
             f"JOIN feedback f ON f.id = a.feedback_id{analysis_where} GROUP BY a.model_mode",
             params,
         )
@@ -585,6 +623,7 @@ def create_app(
             return round(ordered[lower] * (1 - weight) + ordered[upper] * weight)
 
         ai_analyses = analysis_modes.get("ai", 0)
+        ai_tickets = next((row["ticket_count"] for row in analysis_rows if row["model_mode"] == "ai"), 0)
         return MetricsOut(
             project_id=project_id,
             documents=documents_count,
@@ -599,7 +638,7 @@ def create_app(
             total_tokens=total_tokens,
             model_latency_p50_ms=percentile(latencies, 0.50),
             model_latency_p95_ms=percentile(latencies, 0.95),
-            ai_to_ticket_rate=round(tickets_count / ai_analyses, 4) if ai_analyses else 0.0,
+            ai_to_ticket_rate=round(ai_tickets / ai_analyses, 4) if ai_analyses else 0.0,
         )
 
     if static_dir is not None:
@@ -640,7 +679,7 @@ def _run_agent_analysis(
     *,
     provider: AIProvider,
     offline_mode: bool,
-    db: Database,
+    traces: list[tuple[str, str]],
     feedback: sqlite3.Row,
     documents: list[sqlite3.Row],
     fallback_documents: list[sqlite3.Row],
@@ -683,8 +722,6 @@ def _run_agent_analysis(
         )
         tool_result["fallback"] = False
         planner_trace["status"] = "accepted"
-        insert_trace(db, feedback["id"], model_step, json.dumps(planner_trace, ensure_ascii=False))
-        insert_trace(db, feedback["id"], "tool", json.dumps(tool_result, ensure_ascii=False))
     except Exception as exc:
         # An invalid plan never reaches a tool. Fall back to deterministic
         # document search and continue to the recommendation call.
@@ -692,11 +729,16 @@ def _run_agent_analysis(
         planner_elapsed = getattr(exc, "elapsed_ms", None) or round((time.perf_counter() - planner_started) * 1_000)
         planner_trace.update(model_trace_fields(exc, configured_model=settings.model, elapsed_ms=planner_elapsed))
         planner_trace["error_code"] = _safe_failure_code(exc)
-        insert_trace(db, feedback["id"], model_step, json.dumps(planner_trace, ensure_ascii=False))
         tool_result["fallback_reason"] = _safe_failure_code(exc)
-        insert_trace(db, feedback["id"], "tool", json.dumps(tool_result, ensure_ascii=False))
-        if not isinstance(exc, ValueError):
-            insert_trace(db, feedback["id"], "error", "AI tool planning failed; deterministic search used")
+
+    traces.append((model_step, json.dumps(planner_trace, ensure_ascii=False)))
+    tool_trace = dict(tool_result)
+    if tool_trace["tool"] == "search_documents":
+        # Queries can echo private feedback or arbitrary provider output.
+        tool_trace["arguments"] = {"query_length": len(tool_result["arguments"]["query"])}
+    traces.append(("tool", json.dumps(tool_trace, ensure_ascii=False)))
+    if planner_trace["status"] == "failed":
+        traces.append(("error", "AI tool planning failed; deterministic search used"))
 
     model_trace: dict[str, Any] = {
         "model": settings.model,
@@ -748,7 +790,7 @@ def _run_agent_analysis(
                 "rejected_citations": rejected_citations,
             }
         )
-        insert_trace(db, feedback["id"], model_step, json.dumps(model_trace, ensure_ascii=False))
+        traces.append((model_step, json.dumps(model_trace, ensure_ascii=False)))
         return result
     except Exception as exc:
         # Provider errors and unsupported responses are not surfaced as fake
@@ -757,8 +799,8 @@ def _run_agent_analysis(
         recommendation_elapsed = getattr(exc, "elapsed_ms", None) or round((time.perf_counter() - recommendation_started) * 1_000)
         model_trace.update(model_trace_fields(exc, configured_model=settings.model, elapsed_ms=recommendation_elapsed))
         model_trace["error_code"] = _safe_failure_code(exc)
-        insert_trace(db, feedback["id"], model_step, json.dumps(model_trace, ensure_ascii=False))
-        insert_trace(db, feedback["id"], "error", f"AI analysis failed: {model_trace['error_code']}")
+        traces.append((model_step, json.dumps(model_trace, ensure_ascii=False)))
+        traces.append(("error", f"AI analysis failed: {model_trace['error_code']}"))
         return unavailable_analysis(
             int(feedback["id"]),
             "AI 分析暂时不可用，无法生成已核验的建议。请人工处理。",

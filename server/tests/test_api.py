@@ -161,6 +161,22 @@ def test_metrics_aggregate_safe_model_telemetry_per_project(tmp_path):
     assert all_metrics["model_calls"] == 3
     assert client.get("/api/metrics?project_id=9999").status_code == 404
 
+    replay = create_feedback(client, project_a["id"], content="Offline fixture")
+    with app.state.db.transaction() as connection:
+        connection.execute(
+            """INSERT INTO analyses(feedback_id, category, summary, suggested_reply,
+               proposed_task, evidence_json, needs_review, model_mode, updated_at)
+               VALUES (?, 'question', 's', 'r', 't', '[]', 1, 'demo', ?)""",
+            (replay["id"], now),
+        )
+        connection.execute(
+            "INSERT INTO tickets(feedback_id, project_id, title, created_at) VALUES (?, ?, 'Replay', ?)",
+            (replay["id"], project_a["id"], now),
+        )
+    mixed = client.get(f"/api/metrics?project_id={project_a['id']}").json()
+    assert mixed["tickets"] == 2
+    assert mixed["ai_to_ticket_rate"] == 1.0
+
 
 def test_no_ai_mode_is_honest_and_records_retrieval_error(tmp_path, monkeypatch):
     for name in ("OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_MODEL"):
@@ -242,13 +258,14 @@ def test_approval_persists_reviewer_override_and_audit_trace(monkeypatch, tmp_pa
     project = create_project(client)
     document = create_document(client, project["id"])
     feedback = create_feedback(client, project["id"])
-    client.post(f"/api/feedback/{feedback['id']}/analyze")
+    analysis = client.post(f"/api/feedback/{feedback['id']}/analyze").json()
 
     response = client.post(
         f"/api/feedback/{feedback['id']}/approve",
         json={
             "title": "  Verify reset flow with the support team  ",
             "reviewer_note": "  Checked the cited guide before opening the ticket.  ",
+            "analysis_updated_at": analysis["updated_at"],
         },
     )
     assert response.status_code == 200
@@ -267,6 +284,7 @@ def test_approval_persists_reviewer_override_and_audit_trace(monkeypatch, tmp_pa
         "title_length": len(ticket["title"]),
         "reviewer_note_length": len(ticket["reviewer_note"]),
         "original_proposed_task_length": len(ticket["original_proposed_task"]),
+        "analysis_updated_at": analysis["updated_at"],
     }
     assert "Checked the cited guide" not in review_traces[0]["detail"]
 
@@ -568,7 +586,7 @@ def test_agent_search_tool_is_validated_and_recorded(monkeypatch, tmp_path):
     tool_trace = json.loads(traces[2]["detail"])
     assert tool_trace["tool"] == "search_documents"
     assert tool_trace["fallback"] is False
-    assert tool_trace["arguments"] == {"query": "password"}
+    assert tool_trace["arguments"] == {"query_length": len("password")}
     assert provider.calls == 2
 
 
@@ -664,3 +682,90 @@ def test_ai_provider_failure_does_not_create_fake_result(monkeypatch, tmp_path):
     assert analysis["evidence"] == []
     traces = client.get(f"/api/traces?feedback_id={feedback['id']}").json()
     assert traces[-1]["step"] == "error"
+
+
+def test_stale_review_is_rejected_and_approved_analysis_is_frozen(monkeypatch, tmp_path):
+    configure_ai(monkeypatch)
+    provider = GoodProvider(valid_recommendation(1))
+    client = make_client(tmp_path, provider)
+    project = create_project(client)
+    create_document(client, project["id"])
+    feedback = create_feedback(client, project["id"])
+    path = f"/api/feedback/{feedback['id']}"
+    first = client.post(f"{path}/analyze").json()
+    second = client.post(f"{path}/analyze").json()
+    assert first["updated_at"] != second["updated_at"]
+    assert client.post(f"{path}/approve", json={"analysis_updated_at": first["updated_at"]}).status_code == 409
+    assert not client.get(f"/api/tickets?project_id={project['id']}").json()
+    approved = client.post(f"{path}/approve", json={"analysis_updated_at": second["updated_at"]})
+    assert approved.status_code == 200
+    assert client.post(f"{path}/analyze").json() == second
+    assert client.post(f"{path}/approve", json={"analysis_updated_at": first["updated_at"]}).json() == approved.json()
+    assert provider.calls == 4
+
+
+def test_same_feedback_does_not_start_a_second_model_run(monkeypatch, tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    configure_ai(monkeypatch)
+    entered = Event()
+    release = Event()
+
+    class BlockingProvider(GoodProvider):
+        def complete(self, **kwargs):
+            entered.set()
+            assert release.wait(5)
+            return super().complete(**kwargs)
+
+    provider = BlockingProvider(valid_recommendation(1))
+    client = make_client(tmp_path, provider)
+    project = create_project(client)
+    create_document(client, project["id"])
+    feedback = create_feedback(client, project["id"])
+    path = f"/api/feedback/{feedback['id']}/analyze"
+    with ThreadPoolExecutor() as pool:
+        original = pool.submit(client.post, path)
+        try:
+            assert entered.wait(5)
+            assert client.post(path).status_code == 409
+        finally:
+            release.set()
+        assert original.result().json()["model_mode"] == "ai"
+    assert provider.calls == 2
+
+
+def test_analysis_and_traces_roll_back_together(monkeypatch, tmp_path):
+    configure_ai(monkeypatch)
+    app = create_app(tmp_path / "rollback.db", ai_provider=GoodProvider(valid_recommendation(1)))
+    client = TestClient(app)
+    project = create_project(client)
+    create_document(client, project["id"])
+    feedback = create_feedback(client, project["id"])
+    with app.state.db.transaction() as connection:
+        connection.execute("""
+            CREATE TRIGGER fail_tool_trace BEFORE INSERT ON traces
+            WHEN NEW.step = 'tool' BEGIN SELECT RAISE(ABORT, 'test failure'); END
+        """)
+    path = f"/api/feedback/{feedback['id']}"
+    assert client.post(f"{path}/analyze").status_code == 503
+    assert client.get(f"{path}/analysis").status_code == 404
+    assert client.get(f"/api/traces?feedback_id={feedback['id']}").json() == []
+    assert client.get(f"/api/feedback?project_id={project['id']}").json()[0]["status"] == "new"
+
+
+def test_cross_site_browser_requests_cannot_analyze_or_approve(monkeypatch, tmp_path):
+    configure_ai(monkeypatch)
+    provider = GoodProvider(valid_recommendation(1))
+    client = make_client(tmp_path, provider)
+    project = create_project(client)
+    create_document(client, project["id"])
+    feedback = create_feedback(client, project["id"])
+    path = f"/api/feedback/{feedback['id']}"
+    external = {"Origin": "https://outside.example"}
+    assert client.post(f"{path}/analyze", headers=external).status_code == 403
+    assert provider.calls == 0
+    assert client.post(f"{path}/analyze", headers={"Origin": "http://127.0.0.1:5173"}).status_code == 200
+    assert client.post(f"{path}/approve", headers=external).status_code == 403
+    assert client.get("/api/tickets").json() == []
+    assert client.post(f"{path}/approve", headers={"Origin": "http://testserver"}).status_code == 200

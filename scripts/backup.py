@@ -10,16 +10,20 @@ def copy_database(source, destination):
     if not source.is_file():
         raise ValueError("Source database does not exist")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    # Atomic exclusive creation also rejects source == destination and races.
-    with destination.open("xb"):
-        pass
     with closing(sqlite3.connect(source.as_uri() + "?mode=ro", uri=True)) as src:
         if src.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
             raise ValueError("Source integrity check failed")
-        with closing(sqlite3.connect(destination)) as dst:
-            src.backup(dst)
-            if dst.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                raise ValueError("Backup integrity check failed")
+        # Exclusive creation rejects source == destination and concurrent copies.
+        with destination.open("xb"):
+            pass
+        try:
+            with closing(sqlite3.connect(destination)) as dst:
+                src.backup(dst)
+                if dst.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                    raise ValueError("Backup integrity check failed")
+        except (OSError, ValueError, sqlite3.Error):
+            destination.unlink(missing_ok=True)
+            raise
     return destination
 
 

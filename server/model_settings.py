@@ -177,22 +177,28 @@ class ModelConfig:
                     'load_error': self.load_error}
 
 
-def install_routes(app, config, activate, tester=None):
+def install_routes(app, config, activate, tester=None, *, dev_origins):
     @app.middleware('http')
-    async def protect_model_settings(request, call_next):
-        if not request.url.path.startswith('/api/model-settings'):
+    async def protect_browser_writes(request, call_next):
+        is_settings = request.url.path.startswith('/api/model-settings')
+        is_write = request.method not in {'GET', 'HEAD', 'OPTIONS'}
+        if not is_settings and not (request.url.path.startswith('/api/') and is_write):
             return await call_next(request)
-        allowed_origins = {str(request.base_url).rstrip('/'), 'http://localhost:5173', 'http://127.0.0.1:5173',
-                           'http://localhost:3000', 'http://127.0.0.1:3000'}
+
+        allowed_origins = {str(request.base_url).rstrip('/'), *dev_origins}
         origin = request.headers.get('origin')
-        host = request.url.hostname
+        if not is_settings:
+            if origin is not None and origin not in allowed_origins:
+                return JSONResponse({'detail': '请从 Signal 工作台发起此操作。'}, status_code=403)
+            return await call_next(request)
+
         error = None
         allowed_hosts = {'localhost', '127.0.0.1', '::1'}
         if request.client and request.client.host == 'testclient':
             allowed_hosts.add('testserver')
-        if host not in allowed_hosts or (origin and origin not in allowed_origins):
+        if request.url.hostname not in allowed_hosts or (origin is not None and origin not in allowed_origins):
             error = '模型设置仅允许本机工作台访问'
-        elif request.method not in {'GET', 'HEAD', 'OPTIONS'} and not hmac.compare_digest(request.headers.get('x-signal-settings-token', '').encode(), config.csrf_token.encode()):
+        elif is_write and not hmac.compare_digest(request.headers.get('x-signal-settings-token', '').encode(), config.csrf_token.encode()):
             error = '设置会话已失效，请关闭窗口后重新打开'
         response = JSONResponse({'detail': error}, status_code=403) if error else await call_next(request)
         response.headers['Cache-Control'] = 'no-store'

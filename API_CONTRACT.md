@@ -1,6 +1,6 @@
 # API contract (v0.1)
 
-The web app calls the FastAPI service at `VITE_API_URL` (default `http://localhost:8000`). JSON responses use UTF-8. Every resource belongs to a project.
+The production app uses the API on the same origin. Vite development defaults to `http://127.0.0.1:8000` and accepts a `VITE_API_URL` override. JSON responses use UTF-8. Every resource belongs to a project.
 
 | Method | Path | Request | Response |
 | --- | --- | --- | --- |
@@ -13,17 +13,30 @@ The web app calls the FastAPI service at `VITE_API_URL` (default `http://localho
 | POST | `/api/feedback` | `{project_id,source,content}` | `Feedback` |
 | POST | `/api/feedback/{id}/analyze` | — | `Analysis` |
 | GET | `/api/feedback/{id}/analysis` | — | `Analysis` or `404` if never analyzed |
-| POST | `/api/feedback/{id}/approve` | optional `{title,reviewer_note}` | `Ticket` |
+| POST | `/api/feedback/{id}/approve` | optional `{title,reviewer_note,analysis_updated_at}` | `Ticket` |
 | GET | `/api/tickets?project_id=1` | — | `Ticket[]` |
 | PATCH | `/api/tickets/{id}` | `{status:"open"|"in_progress"|"done",resolution_note?}` | `Ticket` |
 | GET | `/api/traces?feedback_id=1` | — | `Trace[]` |
 | GET | `/api/metrics?project_id=1` | — | `Metrics` |
 
-Types: `Project {id,name,description,created_at}`; `Document {id,project_id,title,content,created_at}`; `Feedback {id,project_id,source,content,status,created_at}`; `Analysis {feedback_id,category,summary,suggested_reply,proposed_task,evidence: Evidence[],needs_review,model_mode}`; `Evidence {document_id,title,excerpt}`; `Ticket {id,feedback_id,project_id,title,reviewer_note,original_proposed_task,status,resolution_note,created_at,updated_at}`; `Trace {id,feedback_id,step,detail,created_at}`; `Metrics {project_id,documents,feedback,analyses,ai_analyses,unavailable_analyses,tickets,completed_tickets,traces,model_calls,total_tokens,model_latency_p50_ms,model_latency_p95_ms,ai_to_ticket_rate}`.
+| Type | Fields |
+| --- | --- |
+| `Project` | `id,name,description,created_at` |
+| `Document` | `id,project_id,title,content,created_at` |
+| `Feedback` | `id,project_id,source,content,status,created_at` |
+| `Analysis` | `feedback_id,category,summary,suggested_reply,proposed_task,evidence: Evidence[],needs_review,model_mode,updated_at` |
+| `Evidence` | `document_id,title,excerpt` |
+| `Ticket` | `id,feedback_id,project_id,title,reviewer_note,original_proposed_task,status,resolution_note,created_at,updated_at` |
+| `Trace` | `id,feedback_id,step,detail,created_at` |
+| `Metrics` | `project_id,documents,feedback,analyses,ai_analyses,unavailable_analyses,tickets,completed_tickets,traces,model_calls,total_tokens,model_latency_p50_ms,model_latency_p95_ms,ai_to_ticket_rate` |
 
-`/api/metrics` returns counts and allow-listed numeric model telemetry only. It never exposes feedback text, prompts, model responses, reasoning content, or API keys. Omitting `project_id` returns an all-project aggregate.
+`/api/metrics` returns counts and allow-listed numeric model telemetry. Omitting `project_id` aggregates all projects. The AI-to-ticket rate counts tickets linked to AI analyses and divides by the number of AI analyses.
 
-`model_mode` is `ai` or `unavailable`. When no AI API is configured, `/analyze` returns an explicit unavailable response and must not pretend to be AI. An analysis does not mutate tickets. Approval writes a ticket only after the reviewer sees the proposed task; the first approval stores an immutable AI suggestion snapshot and optional human edits, while repeated approval is idempotent. No external communication or publishing occurs.
+`model_mode` is `ai`, `demo`, or `unavailable`. Analysis and its trace entries are stored in one transaction. A duplicate in-flight analysis can return `409`. For feedback with a ticket, analysis requests return the saved analysis without another model call. Legacy tickets without a saved analysis return `409`.
+
+Clients can pass the displayed analysis `updated_at` as `analysis_updated_at` when approving. A stale value returns `409` if no ticket exists. The first approval stores the original suggestion and optional reviewer edits. Repeated approvals return the same ticket. A demo analysis can be approved while in offline mode.
+
+API writes from a browser require a matching origin or an allowed local Vite development origin. Command-line requests can omit `Origin`.
 
 Ticket status transitions are monotonic: `open -> in_progress -> done`, with `open -> done` also allowed. Completing a ticket requires a non-empty resolution note. Repeating the current status is idempotent; completed tickets are terminal.
 # 网页模型设置（新增）

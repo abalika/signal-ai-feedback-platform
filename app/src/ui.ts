@@ -18,11 +18,19 @@ const statusLabels: Record<string, { label: string; tone: string }> = {
   resolved: { label: '已解决', tone: 'green' },
 }
 
+const dateFormatter = new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+
 export function formatDate(value: string) {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)
+  return dateFormatter.format(date)
+}
+
+export function ticketStatusMeta(status: string) {
+  if (status === 'done') return { label: '已完成', tone: 'green' }
+  if (status === 'in_progress') return { label: '处理中', tone: 'blue' }
+  return { label: '待处理', tone: 'amber' }
 }
 
 export function statusMeta(value: string) {

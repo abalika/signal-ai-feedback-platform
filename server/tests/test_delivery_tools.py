@@ -33,6 +33,7 @@ def test_backup_rejects_invalid_database(tmp_path):
     with pytest.raises(sqlite3.DatabaseError):
         copy_database(invalid, tmp_path / "backup.db")
     assert invalid.read_bytes() == b"invalid sqlite"
+    assert not (tmp_path / "backup.db").exists()
 
 
 def test_release_integrity_detects_tampering_missing_and_unsafe_paths(tmp_path):

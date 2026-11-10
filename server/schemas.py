@@ -7,7 +7,7 @@ import sqlite3
 from typing import Any
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 
 class ProjectCreate(BaseModel):
@@ -87,6 +87,7 @@ class AnalysisOut(BaseModel):
     evidence: list[EvidenceOut]
     needs_review: bool
     model_mode: str
+    updated_at: str = ""
 
 
 class TicketApproval(BaseModel):
@@ -94,6 +95,7 @@ class TicketApproval(BaseModel):
 
     title: str | None = Field(default=None, min_length=1, max_length=240)
     reviewer_note: str = Field(default="", max_length=2_000)
+    analysis_updated_at: str | None = Field(default=None, min_length=1, max_length=64)
 
     @field_validator("title", "reviewer_note", mode="before")
     @classmethod
@@ -182,7 +184,13 @@ def analysis_from_row(row: sqlite3.Row) -> AnalysisOut:
         raw_evidence = json.loads(row["evidence_json"])
     except (TypeError, ValueError):
         raw_evidence = []
-    evidence = [EvidenceOut(**item) for item in raw_evidence if isinstance(item, dict)]
+    evidence = []
+    if isinstance(raw_evidence, list):
+        for item in raw_evidence:
+            try:
+                evidence.append(EvidenceOut.model_validate(item))
+            except ValidationError:
+                continue
     return AnalysisOut(
         feedback_id=int(row["feedback_id"]),
         category=str(row["category"]),
@@ -192,4 +200,5 @@ def analysis_from_row(row: sqlite3.Row) -> AnalysisOut:
         evidence=evidence,
         needs_review=bool(row["needs_review"]),
         model_mode=str(row["model_mode"]),
+        updated_at=str(row["updated_at"]),
     )

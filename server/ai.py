@@ -26,10 +26,10 @@ except ImportError:  # pragma: no cover - requirements include python-dotenv
 
 try:
     from .schemas import AnalysisOut, EvidenceOut
-    from .retrieval import MAX_RETRIEVED_DOCUMENTS, retrieval_diagnostics, retrieve_documents
+    from .retrieval import MAX_RETRIEVED_DOCUMENTS, retrieve_with_diagnostics
 except ImportError:  # pragma: no cover - direct-module compatibility
     from schemas import AnalysisOut, EvidenceOut
-    from retrieval import MAX_RETRIEVED_DOCUMENTS, retrieval_diagnostics, retrieve_documents
+    from retrieval import MAX_RETRIEVED_DOCUMENTS, retrieve_with_diagnostics
 
 
 MAX_DOCUMENT_CHARS = 4_000
@@ -313,12 +313,12 @@ def run_tool(
     """Run one validated, deterministic read-only tool."""
 
     if tool_name == "search_documents":
-        selected = retrieve_documents(documents, arguments["query"])
+        selected, diagnostics = retrieve_with_diagnostics(documents, arguments["query"])
         return selected, {
             "tool": tool_name,
             "arguments": arguments,
             "document_ids": [int(row["id"]) for row in selected],
-            **retrieval_diagnostics(documents, arguments["query"]),
+            **diagnostics,
         }
 
     counts = list(arguments["task_counts"])

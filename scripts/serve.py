@@ -34,4 +34,11 @@ if __name__ == "__main__":
     if not (ROOT / "app/dist/index.html").exists():
         parser.error("Missing app/dist. Run npm run build in app first, or use the delivery package.")
     import uvicorn
-    uvicorn.run(build_app(live=args.live, database=args.database), host="127.0.0.1", port=args.port)
+    app = build_app(live=args.live, database=args.database)
+    if app.state.offline:
+        print("OFFLINE REPLAY: fixture data, no AI calls.", flush=True)
+    elif app.state.model_config.current().configured:
+        print("LIVE MODEL: analyzing feedback uses the configured provider.", flush=True)
+    else:
+        print("MODEL UNCONFIGURED: open Model Settings to connect or switch to offline replay.", flush=True)
+    uvicorn.run(app, host="127.0.0.1", port=args.port)

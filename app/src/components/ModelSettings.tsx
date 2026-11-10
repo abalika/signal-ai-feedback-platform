@@ -74,7 +74,7 @@ export function ModelSettings({ onClose, onChanged }: { onClose: () => void; onC
     {!status && !error && <div className="settings-state" role="status">正在读取本机配置…</div>}
     {error && <div className="error-banner" role="alert"><Icon name="alert" size={17} /><span>{error}</span></div>}
     {status && <>
-      <div className="settings-state"><Icon name="shield" size={21} /><div><strong>{status.mode === 'live' ? '真实模型已启用' : '当前使用离线演示'}</strong><p>{status.has_key ? `API key ${status.key_mask} · ${status.remembered ? '本机已记住' : status.source === 'environment' ? '来自后端环境配置' : '仅本次运行'}` : '尚未配置 API key，离线演示仍可直接使用。'}</p></div></div>
+      <div className="settings-state"><Icon name="shield" size={21} /><div><strong>{status.mode === 'offline' ? '当前使用离线演示' : status.source === 'none' ? '尚未配置模型连接' : '真实模型已启用'}</strong><p>{status.has_key ? `API key ${status.key_mask} · ${status.remembered ? '本机已记住' : status.source === 'environment' ? '来自后端环境配置' : '仅本次运行'}` : '填写 API key 测试连接，或切换到离线演示。'}</p></div></div>
       {status.load_error && <div className="error-banner" role="alert">保存的本机配置无法读取，请重新填写并测试连接。</div>}
       <form ref={form} className="modal-form model-settings-form" onSubmit={(event) => void save(event)}>
         <fieldset disabled={Boolean(busy)}>

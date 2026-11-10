@@ -113,6 +113,7 @@ class Database:
             # startup migration deliberately small and additive so an
             # existing portfolio database remains readable after the review
             # fields are introduced.
+            connection.execute("BEGIN IMMEDIATE")
             self._ensure_column(
                 connection,
                 "tickets",
@@ -200,13 +201,3 @@ class Database:
     def fetchall(self, query: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
         with self._lock, closing(self.connect()) as connection:
             return list(connection.execute(query, params).fetchall())
-
-
-def insert_trace(db: Database, feedback_id: int, step: str, detail: str) -> None:
-    """Persist a bounded execution trace without exposing provider secrets."""
-
-    with db.transaction() as connection:
-        connection.execute(
-            "INSERT INTO traces(feedback_id, step, detail, created_at) VALUES (?, ?, ?, ?)",
-            (feedback_id, step, detail[:4_000], utc_now()),
-        )

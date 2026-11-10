@@ -19,10 +19,12 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
   options?.signal?.addEventListener('abort', cancel, { once: true })
   if (options?.signal?.aborted) controller.abort()
   try {
+    const headers = new Headers(options?.headers)
+    if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
     const response = await fetch(`${API_URL}${path}`, {
       ...options,
       signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', ...(options?.headers ?? {}) },
+      headers,
     })
     const raw = await response.text()
     let payload: unknown
@@ -30,13 +32,16 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
     if (!response.ok) {
       const data = payload as { detail?: unknown; message?: unknown } | undefined
       const detail = data?.detail ?? data?.message
-      const message = Array.isArray(detail)
-        ? detail.map((item: { loc?: unknown[]; msg?: string }) => `${item.loc?.slice(1).join('.') || '输入'}：${item.msg || '无效'}`).join('；')
-        : typeof detail === 'string' ? detail : `请求失败（${response.status}），请稍后重试`
+      const fields = Array.isArray(detail) ? detail.flatMap((item: unknown) => {
+        if (!item || typeof item !== 'object' || !('msg' in item) || typeof item.msg !== 'string') return []
+        const field = 'loc' in item && Array.isArray(item.loc) ? item.loc.slice(1).join('.') : ''
+        return [`${field || '输入'}：${item.msg}`]
+      }) : []
+      const message = typeof detail === 'string' && detail.trim() ? detail : fields.join('；') || `请求失败（${response.status}），请稍后重试`
       throw new ApiError(response.status, message)
     }
     if (response.status === 204) return undefined as T
-    if (payload === undefined) throw new ApiError(response.status, '服务返回了无效数据，请刷新后重试')
+    if (payload == null) throw new ApiError(response.status, '服务返回了无效数据，请刷新后重试')
     return payload as T
   } catch (error) {
     if (error instanceof ApiError) throw error

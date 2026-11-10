@@ -44,3 +44,22 @@ test('empty 204 is supported', async () => {
   globalThis.fetch = async () => new Response(null, { status: 204 })
   assert.equal(await request('/api/projects'), undefined)
 })
+
+test('malformed validation errors retain the actual HTTP status', async () => {
+  globalThis.fetch = async () => new Response('{"detail":[null,{"loc":5},"invalid"]}', { status: 422 })
+  await assert.rejects(request('/api/projects'), { status: 422, message: '请求失败（422），请稍后重试' })
+})
+
+test('empty success responses cannot masquerade as project data', async () => {
+  globalThis.fetch = async () => new Response('')
+  await assert.rejects(request('/api/projects'), { status: 200, message: '服务返回了无效数据，请刷新后重试' })
+})
+
+test('Headers objects preserve model settings credentials headers', async () => {
+  globalThis.fetch = async (_url, { headers }) => {
+    assert.equal(headers.get('x-signal-settings-token'), 'fixture-token')
+    assert.equal(headers.get('content-type'), 'application/json')
+    return new Response('{}')
+  }
+  await request('/api/model-settings', { headers: new Headers({ 'X-Signal-Settings-Token': 'fixture-token' }) })
+})

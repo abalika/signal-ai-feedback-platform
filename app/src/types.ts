@@ -37,6 +37,7 @@ export type Analysis = {
   evidence: Evidence[]
   needs_review: boolean
   model_mode: 'ai' | 'unavailable' | string
+  updated_at: string
 }
 
 export type Ticket = {

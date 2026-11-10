@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Document, Feedback, Metrics, Ticket } from '../types'
 import { EmptyState, Icon, MetricCard, PanelHeader } from './Shared'
-import { formatDate, shortText, statusMeta } from '../ui'
+import { formatDate, shortText, statusMeta, ticketStatusMeta } from '../ui'
 
 export function Overview({ documents, feedback, tickets, metrics, selectedFeedbackId, onSelectFeedback, onAddFeedback, onAddDocument, onOpenFeedback, onOpenEvaluations }: { documents: Document[]; feedback: Feedback[]; tickets: Ticket[]; metrics: Metrics | null; selectedFeedbackId: number | null; onSelectFeedback: (id: number) => void; onAddFeedback: () => void; onAddDocument: () => void; onOpenFeedback: () => void; onOpenEvaluations: () => void }) {
   const reviewed = feedback.filter((item) => ['ticket_created', 'ticketed', 'resolved'].includes(item.status)).length
@@ -37,34 +38,90 @@ export function Overview({ documents, feedback, tickets, metrics, selectedFeedba
 
 function FeedbackRow({ item, selected, onClick }: { item: Feedback; selected: boolean; onClick: () => void }) {
   const meta = statusMeta(item.status)
-  return <button type="button" className={`feedback-row ${selected ? 'selected' : ''}`} onClick={onClick}><div className="feedback-row-main"><span className="feedback-source">{item.source}</span><span className={`status-badge ${meta.tone}`}>{meta.label}</span><strong>{shortText(item.content, 96)}</strong><small><Icon name="clock" size={12} />{formatDate(item.created_at)}</small></div><Icon name="arrow" size={16} /></button>
+  return <button type="button" className={`feedback-row ${selected ? 'selected' : ''}`} aria-current={selected || undefined} onClick={onClick}><div className="feedback-row-main"><span className="feedback-source">{item.source}</span><span className={`status-badge ${meta.tone}`}>{meta.label}</span><strong>{shortText(item.content, 96)}</strong><small><Icon name="clock" size={12} />{formatDate(item.created_at)}</small></div><Icon name="arrow" size={16} /></button>
 }
 
-export function DocumentsView({ documents, onAdd }: { documents: Document[]; onAdd: () => void }) {
-  return <section className="panel full-panel"><PanelHeader eyebrow="KNOWLEDGE BASE" title="产品资料" description="当前项目的可检索资料。保持内容短而准确，便于回溯 AI 的引用。" action={<button type="button" className="primary-button small" onClick={onAdd}><Icon name="plus" size={14} />添加资料</button>} />{documents.length === 0 ? <EmptyState icon="book" title="资料库为空" description="先添加产品说明、常见问题或版本记录。" action={<button type="button" className="secondary-button small" onClick={onAdd}><Icon name="plus" size={14} />添加第一份资料</button>} /> : <div className="document-grid">{documents.map((document) => <article className="document-card" key={document.id}><div className="document-card-top"><div className="document-icon"><Icon name="book" size={17} /></div><span className="doc-date">{formatDate(document.created_at)}</span></div><h3>{document.title}</h3><p>{shortText(document.content, 180)}</p><div className="document-footer"><span>DOC-{String(document.id).padStart(3, '0')}</span><span>{document.content.length} 字</span></div></article>)}</div>}</section>
+export function DocumentsView({ documents, onAdd, onOpen }: { documents: Document[]; onAdd: () => void; onOpen: (document: Document) => void }) {
+  const [search, setSearch] = useState('')
+  const query = search.trim().toLocaleLowerCase()
+  const visible = documents.filter((item) => `${item.title} ${item.content}`.toLocaleLowerCase().includes(query))
+  return <section className="panel full-panel">
+    <PanelHeader eyebrow="KNOWLEDGE BASE" title="产品资料" description="按标题或正文查找当前项目的资料。"
+      action={<button type="button" className="primary-button small" onClick={onAdd}><Icon name="plus" size={14} />添加资料</button>} />
+    {documents.length > 0 && <div className="inbox-search document-search">
+      <Icon name="search" size={17} />
+      <input type="search" aria-label="搜索资料" placeholder="搜索资料标题或正文" value={search} onChange={(event) => setSearch(event.target.value)} />
+      <span role="status">{visible.length} 份资料</span>
+    </div>}
+    {documents.length === 0 ? <EmptyState icon="book" title="资料库为空" description="先添加产品说明、常见问题或版本记录。" />
+      : visible.length === 0 ? <EmptyState icon="search" title="没有匹配的资料" description="试试资料正文中的其他关键词。"
+        action={<button type="button" className="secondary-button small" onClick={() => setSearch('')}>清除搜索</button>} />
+      : <div className="document-grid">{visible.map((document) => <article className="document-card" key={document.id}>
+        <div className="document-card-top"><div className="document-icon"><Icon name="book" size={17} /></div><span className="doc-date">{formatDate(document.created_at)}</span></div>
+        <h3>{document.title}</h3>
+        <p>{shortText(document.content, 180)}</p>
+        <div className="document-footer"><span>DOC-{String(document.id).padStart(3, '0')}</span>
+          <button type="button" className="text-button" aria-label={`查看原文：${document.title}`} onClick={() => onOpen(document)}>查看原文<Icon name="arrow" size={14} /></button>
+        </div>
+      </article>)}</div>}
+  </section>
 }
 
-export function FeedbackView({ feedback, selectedFeedbackId, onSelect, onAdd, filtered = false }: { feedback: Feedback[]; selectedFeedbackId: number | null; onSelect: (id: number) => void; onAdd: () => void; filtered?: boolean }) {
-  return <section className="panel full-panel"><PanelHeader eyebrow="USER SIGNALS" title="反馈收件箱" description="每条反馈都保留来源、原文和处理状态；AI 只提供建议，不会直接对外回复。" action={<button type="button" className="primary-button small" onClick={onAdd}><Icon name="plus" size={14} />录入反馈</button>} />{feedback.length === 0 ? <EmptyState icon="inbox" title={filtered ? '没有找到匹配的反馈' : '收件箱为空'} description={filtered ? '试试其他关键词，或清除搜索查看全部反馈。' : '添加一条真实试用反馈，看看它如何走完分析与复核流程。'} action={<button type="button" className="secondary-button small" onClick={onAdd}><Icon name="plus" size={14} />录入第一条反馈</button>} /> : <div className="feedback-table"><div className="table-head"><span>来源 / 原文</span><span>状态</span><span>时间</span><span /></div>{feedback.map((item) => { const meta = statusMeta(item.status); return <button type="button" className={`table-row ${item.id === selectedFeedbackId ? 'selected' : ''}`} key={item.id} onClick={() => onSelect(item.id)}><span><strong>{item.source}</strong><small>{shortText(item.content, 96)}</small></span><span><span className={`status-badge ${meta.tone}`}>{meta.label}</span></span><span className="table-date">{formatDate(item.created_at)}</span><Icon name="arrow" size={15} /></button> })}</div>}</section>
+export function FeedbackView({ feedback, selectedFeedbackId, onSelect, onAdd, filtered, onReset, children }: {
+  feedback: Feedback[]; selectedFeedbackId: number | null; onSelect: (id: number) => void
+  onAdd: () => void; filtered: boolean; onReset: () => void; children: ReactNode
+}) {
+  return <section className="panel inbox-queue" aria-label="反馈队列">
+    <div className="inbox-controls">
+      <div className="inbox-queue-heading"><h2>反馈队列</h2><span role="status">{feedback.length} 条反馈</span></div>
+      {children}
+    </div>
+    {feedback.length === 0 ? <EmptyState icon="inbox" title={filtered ? '没有匹配的反馈' : '收件箱为空'}
+      description={filtered ? '调整关键词或状态筛选后再试。' : '录入一条反馈，开始分析和人工复核。'}
+      action={<button type="button" className="secondary-button small" onClick={filtered ? onReset : onAdd}>{filtered ? '清除筛选' : '录入反馈'}</button>} />
+      : <div className="feedback-list inbox-rows">{feedback.map((item) =>
+        <FeedbackRow key={item.id} item={item} selected={item.id === selectedFeedbackId} onClick={() => onSelect(item.id)} />)}
+      </div>}
+  </section>
 }
 
-export function TicketsView({ tickets, feedback, onUpdate, loading }: { tickets: Ticket[]; feedback: Feedback[]; onUpdate: (id: number, status: string, note: string) => void; loading: string | null }) {
-  const sourceFor = (feedbackId: number) => feedback.find((item) => item.id === feedbackId)?.source ?? `反馈 #${feedbackId}`
+export function TicketsView({ tickets, feedback, focusedTicketId, onOpenFeedback, onUpdate, loading }: {
+  tickets: Ticket[]; feedback: Feedback[]; focusedTicketId: number | null; onOpenFeedback: (id: number) => void
+  onUpdate: (id: number, status: string, note: string) => void; loading: string | null
+}) {
+  const feedbackById = new Map(feedback.map((item) => [item.id, item]))
   const [filter, setFilter] = useState('all')
   const [notes, setNotes] = useState<Record<number, string>>({})
   const counts = { open: tickets.filter((ticket) => ticket.status === 'open').length, in_progress: tickets.filter((ticket) => ticket.status === 'in_progress').length, done: tickets.filter((ticket) => ticket.status === 'done').length }
   const visible = filter === 'all' ? tickets : tickets.filter((ticket) => ticket.status === filter)
-  const statusLabel = (status: string) => status === 'in_progress' ? '处理中' : status === 'done' ? '已完成' : '待处理'
+  useEffect(() => {
+    if (focusedTicketId === null) return
+    const timer = window.setTimeout(() => {
+      const target = document.getElementById(`ticket-${focusedTicketId}`)
+      target?.focus({ preventScroll: true })
+      target?.scrollIntoView({ block: 'nearest' })
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [focusedTicketId])
   return <section className="panel full-panel ticket-lifecycle">
     <PanelHeader eyebrow="DELIVERY QUEUE" title="技术工单" description="从人工审核到处理完成，每次状态变化都有审计记录。" />
-    <div className="ticket-filters"><button className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>全部 {tickets.length}</button><button className={filter === 'open' ? 'active' : ''} onClick={() => setFilter('open')}>待处理 {counts.open}</button><button className={filter === 'in_progress' ? 'active' : ''} onClick={() => setFilter('in_progress')}>处理中 {counts.in_progress}</button><button className={filter === 'done' ? 'active' : ''} onClick={() => setFilter('done')}>已完成 {counts.done}</button></div>
-    {tickets.length === 0 ? <EmptyState icon="ticket" title="还没有技术工单" description="分析一条反馈并确认建议任务后，工单会出现在这里。" /> : visible.length === 0 ? <EmptyState icon="ticket" title="当前筛选没有工单" description="切换其他状态查看工单。" /> : <div className="ticket-cards">{visible.map((ticket) => <article className={`ticket-card ticket-${ticket.status}`} key={ticket.id}>
-      <div className="ticket-card-head"><div><span>TICKET-{String(ticket.id).padStart(4, '0')}</span><h3>{ticket.title}</h3></div><span className={`status-badge ${ticket.status === 'done' ? 'green' : ticket.status === 'in_progress' ? 'blue' : 'amber'}`}>{statusLabel(ticket.status)}</span></div>
-      <div className="ticket-card-meta"><span>来源：{sourceFor(ticket.feedback_id)}</span><span>创建：{formatDate(ticket.created_at)}</span>{ticket.updated_at && <span>更新：{formatDate(ticket.updated_at)}</span>}</div>
+    <div className="ticket-filters" role="group" aria-label="按状态筛选工单">
+      {Object.entries({ all: tickets.length, ...counts }).map(([status, count]) =>
+        <button key={status} type="button" aria-pressed={filter === status} className={filter === status ? 'active' : ''} onClick={() => setFilter(status)}>
+          {status === 'all' ? '全部' : ticketStatusMeta(status).label} {count}
+        </button>)}
+    </div>
+    {tickets.length === 0 ? <EmptyState icon="ticket" title="还没有技术工单" description="分析一条反馈并确认建议任务后，工单会出现在这里。" /> : visible.length === 0 ? <EmptyState icon="ticket" title="当前筛选没有工单" description="切换其他状态查看工单。" /> : <div className="ticket-cards">{visible.map((ticket) => <article className={`ticket-card ticket-${ticket.status}`} key={ticket.id} id={`ticket-${ticket.id}`} tabIndex={-1}>
+      <div className="ticket-card-head"><div><span>TICKET-{String(ticket.id).padStart(4, '0')}</span><h3>{ticket.title}</h3></div><span className={`status-badge ${ticketStatusMeta(ticket.status).tone}`}>{ticketStatusMeta(ticket.status).label}</span></div>
+      <div className="ticket-card-meta"><span>创建 {formatDate(ticket.created_at)}</span>{ticket.updated_at && <span>更新 {formatDate(ticket.updated_at)}</span>}</div>
+      {feedbackById.has(ticket.feedback_id) && <button type="button" className="text-button ticket-source" onClick={() => onOpenFeedback(ticket.feedback_id)}>
+        <Icon name="inbox" size={15} />查看来源反馈<Icon name="arrow" size={14} />
+      </button>}
+      {ticket.original_proposed_task && ticket.original_proposed_task !== ticket.title && <details className="ticket-original"><summary>查看原建议任务</summary><p>{ticket.original_proposed_task}</p></details>}
       {ticket.reviewer_note && <p className="ticket-note"><strong>审核备注</strong>{ticket.reviewer_note}</p>}
       {ticket.status === 'done' && <p className="ticket-resolution"><strong>解决说明</strong>{ticket.resolution_note || '未记录'}</p>}
-      {ticket.status === 'open' && <div className="ticket-actions"><button className="primary-button small" disabled={loading === `ticket-${ticket.id}`} onClick={() => onUpdate(ticket.id, 'in_progress', '')}>{loading === `ticket-${ticket.id}` ? '更新中…' : '开始处理'}</button></div>}
-      {ticket.status === 'in_progress' && <div className="ticket-complete"><textarea aria-label={`工单 ${ticket.id} 的解决说明`} rows={3} maxLength={2000} value={notes[ticket.id] ?? ''} placeholder="填写解决方法、验证结果或交付说明" onChange={(event) => setNotes((current) => ({ ...current, [ticket.id]: event.target.value }))} /><button className="primary-button small" disabled={!notes[ticket.id]?.trim() || loading === `ticket-${ticket.id}`} onClick={() => onUpdate(ticket.id, 'done', notes[ticket.id] ?? '')}>{loading === `ticket-${ticket.id}` ? '更新中…' : '标记完成'}</button></div>}
+      {ticket.status === 'open' && <div className="ticket-actions"><button type="button" className="primary-button small" disabled={Boolean(loading)} onClick={() => onUpdate(ticket.id, 'in_progress', '')}>{loading === `ticket-${ticket.id}` ? '更新中…' : '开始处理'}</button></div>}
+      {ticket.status === 'in_progress' && <div className="ticket-complete"><textarea aria-label={`工单 ${ticket.id} 的解决说明`} rows={3} maxLength={2000} value={notes[ticket.id] ?? ''} placeholder="填写解决方法、验证结果或交付说明" onChange={(event) => setNotes((current) => ({ ...current, [ticket.id]: event.target.value }))} /><button type="button" className="primary-button small" disabled={!notes[ticket.id]?.trim() || Boolean(loading)} onClick={() => onUpdate(ticket.id, 'done', notes[ticket.id] ?? '')}>{loading === `ticket-${ticket.id}` ? '更新中…' : '标记完成'}</button></div>}
     </article>)}</div>}
   </section>
 }

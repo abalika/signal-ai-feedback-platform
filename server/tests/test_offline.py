@@ -92,3 +92,17 @@ def test_all_fixed_questions_have_honest_replay_outcomes(tmp_path):
         row = client.post("/api/feedback", json={"project_id": project_id, "source": "offline-test", "content": case["question"]}).json()
         result = client.post(f"/api/feedback/{row['id']}/analyze").json()
         assert result["model_mode"] == ("demo" if case.get("expected_document") else "unavailable"), case["id"]
+
+
+def test_replay_rejects_questions_with_a_known_prefix(tmp_path):
+    app = create_app(tmp_path / "demo.db", offline=True)
+    seed_demo(app.state.db)
+    client = TestClient(app)
+    known = next(row for row in client.get("/api/feedback").json() if "known-07" in row["source"])
+    row = client.post("/api/feedback", json={
+        "project_id": known["project_id"],
+        "source": "test",
+        "content": known["content"] + "\n\nWhat else happened?",
+    }).json()
+    assert client.post(f"/api/feedback/{row['id']}/analyze").json()["model_mode"] == "unavailable"
+    assert client.post(f"/api/feedback/{row['id']}/approve").status_code == 409

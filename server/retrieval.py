@@ -113,7 +113,16 @@ def retrieve_documents(
 def retrieval_diagnostics(documents: Sequence[RowT], query: str, limit: int = 5) -> dict[str, Any]:
     """Return safe retrieval metadata for traces; document content is omitted."""
 
-    ranked = rank_documents(documents, query)[:limit]
+    return _diagnostics(rank_documents(documents, query)[:limit], query)
+
+
+def retrieve_with_diagnostics(documents: Sequence[RowT], query: str) -> tuple[list[RowT], dict[str, Any]]:
+    ranked = rank_documents(documents, query)[:MAX_RETRIEVED_DOCUMENTS]
+    matched = [item.row for item in ranked if item.score > 0]
+    return matched or [item.row for item in ranked], _diagnostics(ranked, query)
+
+
+def _diagnostics(ranked: list[RankedDocument], query: str) -> dict[str, Any]:
     return {
         "algorithm": RETRIEVAL_ALGORITHM,
         "query_token_count": len(set(tokenize(query))),
