@@ -59,13 +59,18 @@ def smoke():
                 rows = api("/api/feedback")
                 known = next(row for row in rows if "known-07" in row["source"])
                 unknown = next(row for row in rows if "unknown" in row["source"])
-                assert api(f"/api/feedback/{known['id']}/analyze", "POST")["model_mode"] == "demo"
+                recommendation = api(f"/api/feedback/{known['id']}/analyze", "POST")
+                assert recommendation["outcome"] == "recommendation" and recommendation["model_mode"] == "demo"
                 ticket = api(f"/api/feedback/{known['id']}/approve", "POST")
                 assert api(f"/api/feedback/{known['id']}/approve", "POST")["id"] == ticket["id"]
                 api(f"/api/tickets/{ticket['id']}", "PATCH", {"status": "done"}, 422)
                 assert api(f"/api/tickets/{ticket['id']}", "PATCH", {"status": "done", "resolution_note": "Offline smoke passed"})["status"] == "done"
-                assert api(f"/api/feedback/{unknown['id']}/analyze", "POST")["model_mode"] == "unavailable"
-                api(f"/api/feedback/{unknown['id']}/approve", "POST", status=409)
+                held = api(f"/api/feedback/{unknown['id']}/analyze", "POST")
+                assert held["outcome"] == "insufficient_context" and held["model_mode"] == "demo"
+                assert held["proposed_task"] == "" and held["evidence"] == []
+                assert api(f"/api/feedback/{unknown['id']}/analysis") == held
+                api(f"/api/feedback/{unknown['id']}/approve", "POST", {"title": "Attempted override"}, status=409)
+                assert [row["id"] for row in api("/api/tickets")] == [ticket["id"]]
                 assert api("/api/metrics")["model_calls"] == 0
                 print("PASS: HTTP UI/JS MIME, isolated replay, review, idempotency, resolution, safe rejection, zero model calls")
             finally:

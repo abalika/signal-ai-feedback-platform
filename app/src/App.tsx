@@ -7,13 +7,15 @@ import { ModelSettings } from './components/ModelSettings'
 import { DocumentsView, FeedbackView, Overview, TicketsView } from './components/ProjectViews'
 import { Icon, Modal } from './components/Shared'
 import type { Analysis, Document, Feedback, Health, Metrics, ModalKey, NavKey, Project, Ticket, Trace } from './types'
-import { formatDate, navItems } from './ui'
+import { canApproveAnalysis, formatDate, navItems } from './ui'
 
 const EvaluationCenter = lazy(async () => ({ default: (await import('./components/EvaluationCenter')).EvaluationCenter }))
 const inboxFilters = [
   { key: 'all', label: '全部' },
   { key: 'new', label: '待分析' },
   { key: 'analyzed', label: '待复核' },
+  { key: 'insufficient_context', label: '待补资料' },
+  { key: 'unavailable', label: '待重试' },
   { key: 'ticketed', label: '已建单' },
 ] as const
 type InboxFilter = typeof inboxFilters[number]['key']
@@ -22,7 +24,8 @@ function matchesInboxFilter(item: Feedback, filter: InboxFilter) {
   if (filter === 'all') return true
   if (filter === 'new') return ['new', 'pending'].includes(item.status)
   if (filter === 'analyzed') return ['analyzed', 'in_review'].includes(item.status)
-  return ['ticket_created', 'ticketed', 'resolved'].includes(item.status)
+  if (filter === 'ticketed') return ['ticket_created', 'ticketed', 'resolved'].includes(item.status)
+  return item.status === filter
 }
 
 function App() {
@@ -310,17 +313,20 @@ function App() {
     setReviewConfirmed(false)
     try {
       const result = await request<Analysis>(`/api/feedback/${selectedFeedbackId}/analyze`, { method: 'POST' })
-      setFeedback((current) => current.map((item) => item.id === selectedFeedbackId && item.status === 'new' ? { ...item, status: 'analyzed' } : item))
+      const status = result.outcome === 'recommendation' ? 'analyzed' : result.outcome
+      setFeedback((current) => current.map((item) => item.id === selectedFeedbackId &&
+        !matchesInboxFilter(item, 'ticketed') && status !== 'legacy' ? { ...item, status } : item))
       refreshMetrics()
       if (selectedFeedbackRef.current === selectedFeedbackId) {
         const resultVersion = ++feedbackDetailRequest.current
         setDetailsLoading(false)
         setAnalysis(result)
-        setInboxFilter((current) => current === 'new' ? 'all' : current)
+        if (status !== 'legacy') setInboxFilter((current) => current === status ? current : 'all')
         const nextTraces = await request<Trace[]>(`/api/traces?feedback_id=${selectedFeedbackId}`).catch(() => [])
         if (resultVersion === feedbackDetailRequest.current) setTraces(nextTraces)
       }
-      if (result.model_mode === 'unavailable') notify('分析未成功，请查看原因或执行记录后重试')
+      if (result.outcome === 'unavailable') notify('分析未成功，请查看执行记录后重试')
+      else if (result.outcome === 'insufficient_context') notify('已标记待补资料')
       else notify('分析已完成，请核对证据后决定是否建单')
     } catch (analyzeError) {
       if (detailVersion === feedbackDetailRequest.current && activeProjectId && analyzeError instanceof ApiError && [0, 409].includes(analyzeError.status)) {
@@ -333,8 +339,8 @@ function App() {
   }
 
   async function handleApprove(title: string, reviewerNote: string) {
-    if (actionLoading || detailsLoading || !selectedFeedbackId || selectedTicket || !reviewConfirmed || !title.trim() || !analysis?.proposed_task) return
-    if (analysis.feedback_id !== selectedFeedbackId || (analysis.model_mode !== 'ai' && !(analysis.model_mode === 'demo' && health?.demo_mode))) return
+    if (actionLoading || detailsLoading || !selectedFeedbackId || selectedTicket || !reviewConfirmed || !title.trim()) return
+    if (!analysis || analysis.feedback_id !== selectedFeedbackId || !canApproveAnalysis(analysis, health?.demo_mode)) return
     const detailVersion = feedbackDetailRequest.current
     setError('')
     setActionLoading(`approve-${selectedFeedbackId}`)
@@ -463,6 +469,7 @@ function App() {
                   reviewConfirmed={reviewConfirmed} setReviewConfirmed={setReviewConfirmed}
                   onAnalyze={() => void handleAnalyze()} onApprove={(title, note) => void handleApprove(title, note)}
                   onOpenTicket={openTicket} onOpenDocument={(id) => setOpenDocument(documents.find((item) => item.id === id) ?? null)}
+                  onAddDocument={() => setModal('document')}
                   onOpenSettings={() => setModelSettingsOpen(true)} documentIds={documents.map((item) => item.id)}
                   loading={actionLoading} detailsLoading={detailsLoading} aiConfigured={aiReady} demoMode={health?.demo_mode === true} />
                   : <section className="panel inbox-placeholder"><Icon name="inbox" size={24} /><h2>选择一条反馈</h2><p>查看用户原话、处理建议、证据和工单进度。</p></section>}

@@ -32,15 +32,16 @@ class ReplayProvider:
         if system_prompt == TOOL_PLAN_PROMPT:
             return json.dumps({"tool": "search_documents", "arguments": {"query": question[:500]}})
         case = fixed_cases().get(question)
-        if case is None or not case.get("expected_document"):
-            # The API turns unsupported responses into an unavailable result;
-            # it cannot create a ticket from an invented answer.
+        if case is None:
             return "{}"
+        if not case.get("expected_document"):
+            return json.dumps({"outcome": "insufficient_context"})
         blocks = re.findall(r"\[DOCUMENT_ID=(\d+)\] ([^\n]+)\n(.*?)(?=\n\n\[DOCUMENT_ID=|\Z)", user_prompt, re.S)
         match = next((block for block in blocks if block[1] == case["expected_document"]), None)
         if match is None:
             return "{}"
         return json.dumps({
+            "outcome": "recommendation",
             "category": "question", "summary": "【离线固定回放】" + question,
             "suggested_reply": "【演示数据，非模型输出】" + case["reference_answer"],
             "proposed_task": "【演示工单】人工核验：" + question,

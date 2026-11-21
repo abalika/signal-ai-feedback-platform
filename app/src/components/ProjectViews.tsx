@@ -7,9 +7,17 @@ import { formatDate, shortText, statusMeta, ticketStatusMeta } from '../ui'
 export function Overview({ documents, feedback, tickets, metrics, selectedFeedbackId, onSelectFeedback, onAddFeedback, onAddDocument, onOpenFeedback, onOpenEvaluations }: { documents: Document[]; feedback: Feedback[]; tickets: Ticket[]; metrics: Metrics | null; selectedFeedbackId: number | null; onSelectFeedback: (id: number) => void; onAddFeedback: () => void; onAddDocument: () => void; onOpenFeedback: () => void; onOpenEvaluations: () => void }) {
   const reviewed = feedback.filter((item) => ['ticket_created', 'ticketed', 'resolved'].includes(item.status)).length
   const analyzed = feedback.filter((item) => ['analyzed', 'in_review'].includes(item.status)).length
-  const awaiting = feedback.length - reviewed - analyzed
-  const pending = awaiting + analyzed
-  const stages = [{ label: '等待分析', count: awaiting, tone: 'amber', icon: 'inbox' }, { label: '等待人工复核', count: analyzed, tone: 'blue', icon: 'shield' }, { label: '已建单 / 已解决', count: reviewed, tone: 'green', icon: 'check' }]
+  const needsContext = feedback.filter((item) => item.status === 'insufficient_context').length
+  const failed = feedback.filter((item) => item.status === 'unavailable').length
+  const pending = feedback.length - reviewed
+  const awaiting = pending - analyzed - needsContext - failed
+  const stages = [
+    { label: '等待分析', count: awaiting, tone: 'amber', icon: 'inbox' },
+    { label: '等待人工复核', count: analyzed, tone: 'blue', icon: 'shield' },
+    { label: '等待补充资料', count: needsContext, tone: 'violet', icon: 'book' },
+    { label: '等待重试', count: failed, tone: 'amber', icon: 'refresh' },
+    { label: '已建单 / 已解决', count: reviewed, tone: 'green', icon: 'check' },
+  ]
   const recent = [...feedback].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 4)
   return <div className="overview">
     <div className="workspace-note"><span className="note-icon"><Icon name="sparkle" size={17} /></span><p>{pending ? <>有 <strong>{pending} 条反馈</strong>等待你的下一步处理。让 AI 帮你梳理，把判断留给自己。</> : <>工作空间已就绪。从一条反馈开始，连接用户的声音与产品的下一步。</>}</p><span className="note-date">{new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long', timeZone: 'Asia/Shanghai' }).format(new Date())}</span></div>

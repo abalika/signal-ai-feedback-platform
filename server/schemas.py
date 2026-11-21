@@ -87,6 +87,7 @@ class AnalysisOut(BaseModel):
     evidence: list[EvidenceOut]
     needs_review: bool
     model_mode: str
+    outcome: Literal["recommendation", "insufficient_context", "unavailable", "legacy"]
     updated_at: str = ""
 
 
@@ -200,5 +201,6 @@ def analysis_from_row(row: sqlite3.Row) -> AnalysisOut:
         evidence=evidence,
         needs_review=bool(row["needs_review"]),
         model_mode=str(row["model_mode"]),
+        outcome=row["outcome"] or ("unavailable" if row["model_mode"] == "unavailable" else "legacy"),
         updated_at=str(row["updated_at"]),
     )

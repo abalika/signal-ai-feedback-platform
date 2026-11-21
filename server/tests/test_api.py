@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import sqlite3
 
+import pytest
 from fastapi.testclient import TestClient
 
+from server.ai import MAX_DOCUMENT_CHARS
 from server.main import create_app
 
 
@@ -67,6 +69,7 @@ def configure_ai(monkeypatch):
 
 def valid_recommendation(document_id):
     return {
+        "outcome": "recommendation",
         "category": "question",
         "summary": "Password reset",
         "suggested_reply": "Use Settings.",
@@ -520,6 +523,15 @@ def test_existing_ticket_schema_is_migrated_and_snapshot_backfilled(tmp_path):
         INSERT INTO tickets VALUES (
             1, 1, 1, 'Historical AI task', 'open', '2026-01-01T00:00:00Z'
         );
+        INSERT INTO feedback VALUES (2, 1, 'legacy-test', 'Pending review', 'analyzed', '2026-01-01T00:00:00Z');
+        INSERT INTO feedback VALUES (3, 1, 'legacy-test', 'Failed analysis', 'analyzed', '2026-01-01T00:00:00Z');
+        INSERT INTO analyses VALUES (
+            2, 'question', 'Summary', 'Reply', 'Unreviewed AI task',
+            '[{"document_id":1,"title":"Guide","excerpt":"Reset the password from Settings."}]',
+            0, 'ai', '2026-01-01T00:00:00Z'
+        ), (
+            3, 'unresolved', 'No model configured', '', '', '[]', 1, 'unavailable', '2026-01-01T00:00:00Z'
+        );
         """
     )
     connection.commit()
@@ -531,12 +543,21 @@ def test_existing_ticket_schema_is_migrated_and_snapshot_backfilled(tmp_path):
     assert ticket["original_proposed_task"] == "Historical AI task"
     assert ticket["resolution_note"] == ""
     assert ticket["updated_at"] == ticket["created_at"]
+    assert client.post("/api/feedback/1/approve").json() == ticket
+    assert client.post("/api/feedback/1/analyze").json()["outcome"] == "legacy"
+    pending = client.get("/api/feedback/2/analysis").json()
+    assert pending["outcome"] == "legacy" and pending["evidence"]
+    assert client.post("/api/feedback/2/approve").status_code == 409
+    assert client.get("/api/feedback/3/analysis").json()["outcome"] == "unavailable"
+    statuses = {item["id"]: item["status"] for item in client.get("/api/feedback").json()}
+    assert statuses == {1: "ticketed", 2: "analyzed", 3: "unavailable"}
 
 
 def test_ai_citations_are_filtered_to_retrieved_document_text(monkeypatch, tmp_path):
     configure_ai(monkeypatch)
     provider = GoodProvider(
         {
+            "outcome": "recommendation",
             "category": "question",
             "summary": "Password reset",
             "suggested_reply": "Use Settings.",
@@ -679,9 +700,74 @@ def test_ai_provider_failure_does_not_create_fake_result(monkeypatch, tmp_path):
     feedback = create_feedback(client, project["id"])
     analysis = client.post(f"/api/feedback/{feedback['id']}/analyze").json()
     assert analysis["model_mode"] == "unavailable"
+    assert analysis["outcome"] == "unavailable"
     assert analysis["evidence"] == []
     traces = client.get(f"/api/traces?feedback_id={feedback['id']}").json()
     assert traces[-1]["step"] == "error"
+    assert client.get("/api/feedback").json()[0]["status"] == "unavailable"
+
+
+def test_abstention_discards_unsupported_claims_and_blocks_stale_review_until_retry(monkeypatch, tmp_path):
+    configure_ai(monkeypatch)
+    plan = {"tool": "search_documents", "arguments": {"query": "password reset"}}
+    provider = SequenceProvider(
+        plan, valid_recommendation(1),
+        plan, {**valid_recommendation(1), "outcome": "insufficient_context", "suggested_reply": "Invented claim"},
+        plan, valid_recommendation(2),
+    )
+    client = make_client(tmp_path, provider)
+    project = create_project(client)
+    create_document(client, project["id"])
+    feedback = create_feedback(client, project["id"])
+    path = f"/api/feedback/{feedback['id']}"
+
+    first = client.post(f"{path}/analyze").json()
+    assert first["outcome"] == "recommendation"
+    held = client.post(f"{path}/analyze").json()
+    assert held["outcome"] == "insufficient_context" and held["model_mode"] == "ai"
+    assert held["needs_review"] and held["evidence"] == [] and held["proposed_task"] == ""
+    assert "Invented claim" not in held["suggested_reply"]
+    assert client.get(f"{path}/analysis").json() == held
+    assert client.get("/api/feedback").json()[0]["status"] == "insufficient_context"
+    traces = client.get(f"/api/traces?feedback_id={feedback['id']}").json()
+    assert all(trace["step"] != "error" for trace in traces)
+    assert "Invented claim" not in json.dumps(traces)
+    disposition_trace = json.loads(traces[-1]["detail"])
+    assert disposition_trace["outcome"] == "insufficient_context" and disposition_trace["status"] == "accepted"
+    assert client.post(f"{path}/approve", json={"analysis_updated_at": first["updated_at"]}).status_code == 409
+    refused = client.post(f"{path}/approve", json={"title": "Override attempt"})
+    assert refused.status_code == 409 and "资料不足" in refused.json()["detail"]
+    assert client.get("/api/tickets").json() == []
+
+    supplement = create_document(client, project["id"], title="Password reset supplement")
+    latest = client.post(f"{path}/analyze").json()
+    assert latest["outcome"] == "recommendation" and latest["evidence"][0]["document_id"] == supplement["id"]
+    assert client.get("/api/feedback").json()[0]["status"] == "analyzed"
+    ticket = client.post(f"{path}/approve", json={"analysis_updated_at": latest["updated_at"]})
+    assert ticket.status_code == 200
+    assert client.post(f"{path}/analyze").json() == latest
+    assert provider.calls == 6
+
+
+@pytest.mark.parametrize("outcome", [None, "unknown", "recommendation"])
+def test_unrecognized_outcome_or_citation_outside_model_context_blocks_approval(monkeypatch, tmp_path, outcome):
+    configure_ai(monkeypatch)
+    result = valid_recommendation(1)
+    if outcome is None:
+        del result["outcome"]
+    else:
+        result["outcome"] = outcome
+    body = "Password guide. " + ("x" * MAX_DOCUMENT_CHARS) if outcome == "recommendation" else ""
+    provider = SequenceProvider({"tool": "search_documents", "arguments": {"query": "password"}}, result)
+    client = make_client(tmp_path, provider)
+    project = create_project(client)
+    create_document(client, project["id"], content=body + "Reset the password from Settings.")
+    feedback = create_feedback(client, project["id"])
+    path = f"/api/feedback/{feedback['id']}"
+
+    analysis = client.post(f"{path}/analyze").json()
+    assert analysis["outcome"] == "unavailable" and analysis["proposed_task"] == ""
+    assert client.post(f"{path}/approve").status_code == 409
 
 
 def test_stale_review_is_rejected_and_approved_analysis_is_frozen(monkeypatch, tmp_path):

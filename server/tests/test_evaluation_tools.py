@@ -2,22 +2,25 @@ import copy
 
 import pytest
 
-from scripts.evaluate import classify, compare, render_html
+from scripts.evaluate import REPORT_SCHEMA, classify, compare, render_html
 
 
 def test_four_failure_categories_and_success():
     known = {"expected_document": "rules.md"}
-    valid = {"model_mode": "demo", "proposed_task": "review", "evidence": [{"title": "rules.md", "excerpt": "proof"}]}
+    valid = {"model_mode": "demo", "outcome": "recommendation", "proposed_task": "review", "evidence": [{"title": "rules.md", "excerpt": "proof"}]}
     assert classify(known, valid, 200, True, "rules.md") is None
     assert classify(known, valid, 200, True, "other.md") == "retrieval"
     assert classify(known, {**valid, "evidence": []}, 200, True, "rules.md") == "evidence_format"
     assert classify(known, valid, 503, False, "rules.md") == "workflow_runtime"
-    assert classify({}, {"model_mode": "unavailable"}, 409, False, None) is None
+    held = {"model_mode": "demo", "outcome": "insufficient_context", "proposed_task": "", "evidence": []}
+    assert classify({}, held, 409, False, None) is None
+    assert classify({}, {**held, "proposed_task": "Create a ticket"}, 409, False, None) == "unknown_safety"
+    assert classify({}, {"model_mode": "unavailable", "outcome": "unavailable"}, 409, False, None) == "workflow_runtime"
     assert classify({}, valid, 200, True, None) == "unknown_safety"
 
 
 def sample_report():
-    return {"schema": 1, "mode": "offline_replay", "fixture_sha256": "fixture", "generated_at": "today", "revision": "commit", "workflow": {"passed": 1, "total": 1, "pass_rate": 1, "p95_ms": 10}, "retrieval": {"current": {"recall_at_1": 1, "cases": 1}}, "failure_categories": {"retrieval": 0}, "cases": [{"id": "known-01", "question": '<script>alert("x")</script>', "passed": True, "category": None, "elapsed_ms": 10, "reason": ""}]}
+    return {"schema": REPORT_SCHEMA, "mode": "offline_replay", "fixture_sha256": "fixture", "generated_at": "today", "revision": "commit", "workflow": {"passed": 1, "total": 1, "pass_rate": 1, "p95_ms": 10}, "retrieval": {"current": {"recall_at_1": 1, "cases": 1}}, "failure_categories": {"retrieval": 0}, "cases": [{"id": "known-01", "question": '<script>alert("x")</script>', "passed": True, "category": None, "elapsed_ms": 10, "reason": "", "outcome": "recommendation"}]}
 
 
 def test_baseline_comparison_detects_regression_and_incompatible_data():

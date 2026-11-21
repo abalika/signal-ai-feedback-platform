@@ -43,15 +43,14 @@ try:  # Package imports for `uvicorn server.main:app` and test execution.
         ProviderError,
         SYSTEM_PROMPT,
         TOOL_PLAN_PROMPT,
-        as_text,
         build_recommendation_prompt,
         build_tool_plan_prompt,
         model_trace_fields,
         parse_json_object,
+        parse_recommendation,
         run_tool,
         unavailable_analysis,
         validate_tool_plan,
-        validated_evidence,
     )
     from .db import Database, utc_now
     from .retrieval import retrieve_with_diagnostics
@@ -84,15 +83,14 @@ except ImportError:  # Direct-module compatibility for `cd server; uvicorn main:
         ProviderError,
         SYSTEM_PROMPT,
         TOOL_PLAN_PROMPT,
-        as_text,
         build_recommendation_prompt,
         build_tool_plan_prompt,
         model_trace_fields,
         parse_json_object,
+        parse_recommendation,
         run_tool,
         unavailable_analysis,
         validate_tool_plan,
-        validated_evidence,
     )
     from db import Database, utc_now  # type: ignore[no-redef]
     from retrieval import retrieve_with_diagnostics  # type: ignore[no-redef]
@@ -336,8 +334,8 @@ def create_app(
                 """
                 INSERT INTO analyses(
                     feedback_id, category, summary, suggested_reply, proposed_task,
-                    evidence_json, needs_review, model_mode, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    evidence_json, needs_review, model_mode, outcome, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(feedback_id) DO UPDATE SET
                     category=excluded.category,
                     summary=excluded.summary,
@@ -346,6 +344,7 @@ def create_app(
                     evidence_json=excluded.evidence_json,
                     needs_review=excluded.needs_review,
                     model_mode=excluded.model_mode,
+                    outcome=excluded.outcome,
                     updated_at=excluded.updated_at
                 """,
                 (
@@ -357,12 +356,17 @@ def create_app(
                     json.dumps([item.model_dump() for item in result.evidence], ensure_ascii=False),
                     int(result.needs_review),
                     result.model_mode,
+                    result.outcome,
                     result.updated_at,
                 ),
             )
+            status = "analyzed" if result.outcome == "recommendation" else result.outcome
             connection.execute(
-                "UPDATE feedback SET status = 'analyzed' WHERE id = ? AND status = 'new'",
-                (feedback_id,),
+                """
+                UPDATE feedback SET status = ? WHERE id = ?
+                AND status IN ('new', 'pending', 'analyzed', 'in_review', 'insufficient_context', 'unavailable')
+                """,
+                (status, feedback_id),
             )
             connection.executemany(
                 "INSERT INTO traces(feedback_id, step, detail, created_at) VALUES (?, ?, ?, ?)",
@@ -390,22 +394,29 @@ def create_app(
             ).fetchone()
             if existing is not None:
                 return ticket_from_row(existing)
-            analysis = connection.execute(
+            analysis_row = connection.execute(
                 "SELECT * FROM analyses WHERE feedback_id = ?", (feedback_id,)
             ).fetchone()
-            if analysis is None:
+            if analysis_row is None:
                 raise HTTPException(status_code=409, detail="analyze feedback before approval")
-            if payload and payload.analysis_updated_at is not None and payload.analysis_updated_at != analysis["updated_at"]:
+            analysis = analysis_from_row(analysis_row)
+            if payload and payload.analysis_updated_at is not None and payload.analysis_updated_at != analysis.updated_at:
                 raise HTTPException(409, "分析结果已更新，请刷新后重新核对。")
+            if analysis.outcome == "insufficient_context":
+                raise HTTPException(409, "资料不足，补充项目资料并重新分析后才能创建工单。")
+            if analysis.outcome == "legacy":
+                raise HTTPException(409, "请重新分析旧版结果后再创建工单。")
             with config.lock:
                 offline_mode = app.state.offline
-            if analysis["model_mode"] != "ai" and not (offline_mode and analysis["model_mode"] == "demo"):
+            if analysis.outcome != "recommendation" or not (
+                analysis.model_mode == "ai" or (offline_mode and analysis.model_mode == "demo")
+            ):
                 raise HTTPException(status_code=409, detail="only a completed AI analysis can be approved")
-            if not analysis_from_row(analysis).evidence:
+            if not analysis.evidence:
                 raise HTTPException(status_code=409, detail="analysis has no supported evidence")
-            if not analysis["proposed_task"].strip():
+            if not analysis.proposed_task.strip():
                 raise HTTPException(status_code=409, detail="analysis has no proposed task")
-            original_proposed_task = analysis["proposed_task"].strip()
+            original_proposed_task = analysis.proposed_task.strip()
             title = (
                 payload.title.strip()
                 if payload is not None and payload.title is not None
@@ -448,7 +459,7 @@ def create_app(
                             "title_length": len(title),
                             "reviewer_note_length": len(reviewer_note),
                             "original_proposed_task_length": len(original_proposed_task),
-                            "analysis_updated_at": analysis["updated_at"],
+                            "analysis_updated_at": analysis.updated_at,
                         },
                         ensure_ascii=False,
                     ),
@@ -760,33 +771,14 @@ def _run_agent_analysis(
         recommendation_elapsed = round((time.perf_counter() - recommendation_started) * 1_000)
         model_trace.update(model_trace_fields(raw, configured_model=settings.model, elapsed_ms=recommendation_elapsed))
         model_trace["status"] = "response_received"
-        parsed = parse_json_object(raw)
-        evidence, rejected_citations = validated_evidence(
-            parsed.get("citations", parsed.get("evidence")),
-            {int(row["id"]): row for row in selected},
-        )
-        category = as_text(parsed.get("category"), "other")
-        if category not in {"bug", "question", "feature", "other"}:
-            category = "other"
-        summary = as_text(parsed.get("summary"))
-        suggested_reply = as_text(parsed.get("suggested_reply"))
-        proposed_task = as_text(parsed.get("proposed_task"))
-        if not summary or not suggested_reply or not proposed_task or not evidence:
-            raise ValueError("model response lacked a complete, supported recommendation")
-        result = AnalysisOut(
-            feedback_id=int(feedback["id"]),
-            category=category,
-            summary=summary,
-            suggested_reply=suggested_reply,
-            proposed_task=proposed_task,
-            evidence=evidence,
-            needs_review=bool(parsed.get("needs_review", True)) or bool(rejected_citations),
-            model_mode="demo" if offline_mode else "ai",
+        result, rejected_citations = parse_recommendation(
+            raw, int(feedback["id"]), selected, "demo" if offline_mode else "ai",
         )
         model_trace.update(
             {
                 "status": "accepted",
-                "evidence_count": len(evidence),
+                "outcome": result.outcome,
+                "evidence_count": len(result.evidence),
                 "rejected_citations": rejected_citations,
             }
         )
@@ -796,6 +788,7 @@ def _run_agent_analysis(
         # Provider errors and unsupported responses are not surfaced as fake
         # recommendations. Keep the user-facing analysis explicitly unavailable.
         model_trace["status"] = "failed"
+        model_trace["outcome"] = "unavailable"
         recommendation_elapsed = getattr(exc, "elapsed_ms", None) or round((time.perf_counter() - recommendation_started) * 1_000)
         model_trace.update(model_trace_fields(exc, configured_model=settings.model, elapsed_ms=recommendation_elapsed))
         model_trace["error_code"] = _safe_failure_code(exc)
@@ -803,7 +796,8 @@ def _run_agent_analysis(
         traces.append(("error", f"AI analysis failed: {model_trace['error_code']}"))
         return unavailable_analysis(
             int(feedback["id"]),
-            "AI 分析暂时不可用，无法生成已核验的建议。请人工处理。",
+            "离线回放需要题集中的原始问题和对应的示例资料。" if offline_mode
+            else "AI 分析暂时不可用，请检查执行记录后重试。",
         )
 
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Analysis, Evidence, Feedback, Ticket, Trace } from '../types'
 import { Icon } from './Shared'
-import { formatDate, statusMeta, ticketStatusMeta } from '../ui'
+import { canApproveAnalysis, formatDate, statusMeta, ticketStatusMeta } from '../ui'
 
 const categoryLabels: Record<string, string> = { bug: '缺陷', question: '咨询', feature: '功能建议', other: '其他' }
 
@@ -16,6 +16,7 @@ type Props = {
   onApprove: (title: string, reviewerNote: string) => void
   onOpenTicket: (id: number) => void
   onOpenDocument: (id: number) => void
+  onAddDocument: () => void
   onOpenSettings: () => void
   documentIds: number[]
   loading: string | null
@@ -28,11 +29,10 @@ export function AnalysisInspector(props: Props) {
   const { feedback, analysis, traces, ticket, reviewConfirmed, setReviewConfirmed, onAnalyze, onApprove, loading, aiConfigured, detailsLoading } = props
   const [title, setTitle] = useState((analysis?.proposed_task ?? '').slice(0, 240))
   const [reviewerNote, setReviewerNote] = useState('')
-  const unavailable = analysis?.model_mode === 'unavailable'
   const isAnalyzing = loading === `analyze-${feedback.id}`
   const isApproving = loading === `approve-${feedback.id}`
   const historicalReplay = analysis?.model_mode === 'demo' && !props.demoMode
-  const canApprove = Boolean(analysis?.evidence.length && analysis.proposed_task && (analysis.model_mode === 'ai' || analysis.model_mode === 'demo' && props.demoMode))
+  const canApprove = canApproveAnalysis(analysis, props.demoMode)
   const analyzeButton = (label: string, primary = false) => aiConfigured
     ? <button type="button" className={primary ? 'primary-button' : 'secondary-button small'} onClick={onAnalyze} disabled={Boolean(loading)}>
       <Icon name="sparkle" size={16} />{isAnalyzing ? '分析中…' : label}
@@ -45,42 +45,54 @@ export function AnalysisInspector(props: Props) {
     <div className="inspector-heading"><div><span className="panel-eyebrow">REVIEW INSPECTOR</span><h2>处理建议与证据</h2></div>
       <span className="live-label"><span />FB-{String(feedback.id).padStart(4, '0')}</span>
     </div>
-    <div className="selected-feedback"><div className="selected-feedback-head"><div><span className="feedback-source">{feedback.source}</span><span className={`status-badge ${statusMeta(feedback.status).tone}`}>{statusMeta(feedback.status).label}</span></div><time className="feedback-id" dateTime={feedback.created_at}>{formatDate(feedback.created_at)}</time></div><p>{feedback.content}</p></div>
-    {ticket && <div className="linked-ticket">
-      <Icon name="ticket" size={20} />
-      <div><span>关联工单 · {ticketStatusMeta(ticket.status).label}</span><strong>{ticket.title}</strong></div>
-      <button type="button" className="text-button" onClick={() => props.onOpenTicket(ticket.id)}>查看工单<Icon name="arrow" size={15} /></button>
-    </div>}
-    {detailsLoading ? <div className="analysis-start" role="status">正在读取处理记录…</div>
-      : !analysis && !ticket ? <div className="analysis-start">
-      <div className="analysis-orb"><Icon name="sparkle" size={25} /></div><strong>还没有分析结果</strong>
-      <p>请求后端分析服务后，系统会展示分类、摘要、建议任务和资料依据。</p>
-      {analyzeButton(props.demoMode ? '播放固定演示' : '请求 AI 分析', true)}
-      {!aiConfigured && <div className="inline-warning"><Icon name="alert" size={15} />请先连接模型服务，或使用离线演示。</div>}
-    </div> : !analysis ? null : unavailable ? <div className="unavailable-state">
-      <div className="unavailable-icon"><Icon name="alert" size={21} /></div><strong>暂时无法生成有依据的分析</strong>
-      <p>{analysis.summary}</p>
-      {!ticket && analyzeButton('重试分析')}
-    </div> : <div className="analysis-result">
-      <div className="result-topline"><span className="ai-badge"><Icon name="sparkle" size={13} />{analysis.model_mode === 'demo' ? '离线固定回放' : 'AI 分析'}</span><span className="result-category">{categoryLabels[analysis.category] ?? '未分类'}</span></div>
-      <div className="result-block"><span className="result-label">摘要</span><p>{analysis.summary || '后端未返回摘要。'}</p></div>
-      <div className="result-block"><span className="result-label">建议回复</span><p>{analysis.suggested_reply || '后端未返回建议回复。'}</p></div>
-      <div className="result-block task-block"><span className="result-label">AI 建议任务</span><p>{analysis.proposed_task || '后端未返回可执行任务。'}</p></div>
-      <EvidenceList evidence={analysis.evidence} documentIds={props.documentIds} onOpenDocument={props.onOpenDocument} />
-      {!ticket && historicalReplay && <p className="inline-warning"><Icon name="info" size={15} />这条建议来自离线回放。请重新分析后再创建工单。</p>}
-      {!ticket && canApprove && <div className="review-action">
-        {analysis.needs_review && <p className="inline-warning"><Icon name="alert" size={15} />请结合引用核实建议中的细节。</p>}
-        <div className="review-editor">
-          <label>最终工单标题<textarea value={title} maxLength={240} rows={3} onChange={(event) => { setTitle(event.target.value); setReviewConfirmed(false) }} /></label>
-          <label>审核备注（可选）<textarea value={reviewerNote} maxLength={2000} rows={3} placeholder="记录修改原因、待核实事项或验收条件" onChange={(event) => { setReviewerNote(event.target.value); setReviewConfirmed(false) }} /></label>
-        </div>
-        <label className="review-check"><input type="checkbox" checked={reviewConfirmed} onChange={(event) => setReviewConfirmed(event.target.checked)} /><span className="fake-checkbox"><Icon name="check" size={12} /></span><span>我已核对用户原文、资料依据和最终工单内容</span></label>
-        <button type="button" className="primary-button full" disabled={!reviewConfirmed || !title.trim() || Boolean(loading)} onClick={() => onApprove(title, reviewerNote)}>{isApproving ? '创建中…' : '确认并创建技术工单'}<Icon name="arrow" size={15} /></button>
-        <small className="review-hint">系统会同时保存 AI 原建议、人工最终标题和审核备注。</small>
+    <div className="inspector-body">
+      <div className="selected-feedback"><div className="selected-feedback-head"><div><span className="feedback-source">{feedback.source}</span><span className={`status-badge ${statusMeta(feedback.status).tone}`}>{statusMeta(feedback.status).label}</span></div><time className="feedback-id" dateTime={feedback.created_at}>{formatDate(feedback.created_at)}</time></div><p>{feedback.content}</p></div>
+      {ticket && <div className="linked-ticket">
+        <Icon name="ticket" size={20} />
+        <div><span>关联工单 · {ticketStatusMeta(ticket.status).label}</span><strong>{ticket.title}</strong></div>
+        <button type="button" className="text-button" onClick={() => props.onOpenTicket(ticket.id)}>查看工单<Icon name="arrow" size={15} /></button>
       </div>}
-      {!ticket && <div className="analysis-retry">{analyzeButton('重新分析')}</div>}
-    </div>}
-    <TraceList traces={traces} />
+      {detailsLoading ? <div className="analysis-start" role="status">正在读取处理记录…</div>
+        : !analysis && !ticket ? <div className="analysis-start">
+        <div className="analysis-orb"><Icon name="sparkle" size={25} /></div><strong>还没有分析结果</strong>
+        <p>请求后端分析服务后，系统会展示分类、摘要、建议任务和资料依据。</p>
+        {analyzeButton(props.demoMode ? '播放固定演示' : '请求 AI 分析', true)}
+        {!aiConfigured && <div className="inline-warning"><Icon name="alert" size={15} />请先连接模型服务，或使用离线演示。</div>}
+      </div> : !analysis ? null : analysis.outcome === 'unavailable' ? <div className="unavailable-state">
+        <div className="unavailable-icon"><Icon name="alert" size={21} /></div><strong>分析暂时不可用</strong>
+        <p>{analysis.summary}</p>
+        {!ticket && analyzeButton('重试分析')}
+      </div> : <div className="analysis-result">
+        <div className="analysis-copy">
+          <div className="result-topline"><span className="ai-badge"><Icon name="sparkle" size={13} />{analysis.model_mode === 'demo' ? '离线固定回放' : 'AI 分析'}</span>{categoryLabels[analysis.category] && <span className="result-category">{categoryLabels[analysis.category]}</span>}</div>
+          <div className="result-block"><span className="result-label">{analysis.outcome === 'insufficient_context' ? '资料不足' : '摘要'}</span><p>{analysis.summary || '后端未返回摘要。'}</p></div>
+          <div className="result-block"><span className="result-label">建议回复</span><p>{analysis.suggested_reply || '后端未返回建议回复。'}</p></div>
+        </div>
+        {analysis.outcome === 'insufficient_context' ? <p className="context-help"><Icon name="info" size={15} />{props.demoMode ? '固定回放中的这条反馈停在待补资料。' : '补充项目资料并重新分析后，才能进入建单审核。'}</p> : <>
+          <div className="result-block task-block"><span className="result-label">AI 建议任务</span><p>{analysis.proposed_task || '后端未返回可执行任务。'}</p></div>
+          <EvidenceList evidence={analysis.evidence} documentIds={props.documentIds} onOpenDocument={props.onOpenDocument} />
+          {!ticket && analysis.outcome === 'legacy' && <p className="inline-warning"><Icon name="info" size={15} />这是旧版分析。请重新分析后再创建工单。</p>}
+          {!ticket && analysis.outcome === 'recommendation' && historicalReplay && <p className="inline-warning"><Icon name="info" size={15} />这条建议来自离线回放。请重新分析后再创建工单。</p>}
+        </>}
+        {!ticket && canApprove && <div className="review-action">
+          {analysis.needs_review && <p className="inline-warning"><Icon name="alert" size={15} />请结合引用核实建议中的细节。</p>}
+          <div className="review-editor">
+            <label>最终工单标题<textarea value={title} maxLength={240} rows={3} onChange={(event) => { setTitle(event.target.value); setReviewConfirmed(false) }} /></label>
+            <label>审核备注（可选）<textarea value={reviewerNote} maxLength={2000} rows={3} placeholder="记录修改原因、待核实事项或验收条件" onChange={(event) => { setReviewerNote(event.target.value); setReviewConfirmed(false) }} /></label>
+          </div>
+          <label className="review-check"><input type="checkbox" checked={reviewConfirmed} onChange={(event) => setReviewConfirmed(event.target.checked)} /><span className="fake-checkbox"><Icon name="check" size={12} /></span><span>我已核对用户原文、资料依据和最终工单内容</span></label>
+          <div className="review-controls">
+            <button type="button" className="primary-button full" disabled={!reviewConfirmed || !title.trim() || Boolean(loading)} onClick={() => onApprove(title, reviewerNote)}>{isApproving ? '创建中…' : '确认并创建技术工单'}<Icon name="arrow" size={15} /></button>
+            <small className="review-hint">系统会同时保存 AI 原建议、人工最终标题和审核备注。</small>
+          </div>
+        </div>}
+        {!ticket && <div className="analysis-retry">
+          {analysis.outcome === 'insufficient_context' && !props.demoMode && <button type="button" className="secondary-button small" disabled={Boolean(loading)} onClick={props.onAddDocument}><Icon name="book" size={16} />补充项目资料</button>}
+          {analyzeButton('重新分析')}
+        </div>}
+      </div>}
+      <TraceList traces={traces} />
+    </div>
   </section>
 }
 
@@ -127,7 +139,8 @@ function parseTrace(trace: Trace): ParsedTrace {
     const phase = data.phase === 'tool_plan' ? '工具规划' : data.phase === 'recommendation' ? '生成建议' : '模型调用'
     const usage = typeof data.usage === 'object' && data.usage ? data.usage as Record<string, unknown> : data
     const totalTokens = typeof usage.total_tokens === 'number' ? usage.total_tokens : number('total_tokens')
-    return { kind: trace.step === 'replay' ? 'replay' : 'model', title: phase, status: String(data.status ?? ''), summary: trace.step === 'replay' ? '固定回放，未调用模型' : String(data.model ?? '模型信息未返回'), elapsedMs: number('elapsed_ms'), totalTokens }
+    const status = data.outcome === 'insufficient_context' ? '资料不足' : String(data.status ?? '')
+    return { kind: trace.step === 'replay' ? 'replay' : 'model', title: phase, status, summary: trace.step === 'replay' ? '固定回放，未调用模型' : String(data.model ?? '模型信息未返回'), elapsedMs: number('elapsed_ms'), totalTokens }
   }
   if (trace.step === 'tool') return { kind: 'tool', title: '执行只读工具', status: data.fallback ? 'fallback' : 'ok', summary: String(data.tool ?? '未知工具'), elapsedMs: 0, totalTokens: 0 }
   if (trace.step === 'retrieval') return { kind: 'retrieval', title: '检索项目资料', status: 'ok', summary: `${String(data.algorithm ?? 'deterministic')} · 候选 ${String(data.document_count ?? 0)} 份，选中 ${Array.isArray(data.selected_document_ids) ? data.selected_document_ids.length : 0} 份`, elapsedMs: 0, totalTokens: 0 }

@@ -55,7 +55,8 @@ def test_offline_complete_workflow_without_network(monkeypatch, tmp_path):
     assert client.patch(f"/api/tickets/{ticket['id']}", json={"status": "done"}).status_code == 422
     assert client.patch(f"/api/tickets/{ticket['id']}", json={"status": "done", "resolution_note": "离线验收完成"}).json()["status"] == "done"
     unknown = next(row for row in rows if "unknown" in row["source"])
-    assert client.post(f"/api/feedback/{unknown['id']}/analyze").json()["model_mode"] == "unavailable"
+    held = client.post(f"/api/feedback/{unknown['id']}/analyze").json()
+    assert held["outcome"] == "insufficient_context" and held["model_mode"] == "demo"
     assert client.post(f"/api/feedback/{unknown['id']}/approve").status_code == 409
     metrics = client.get("/api/metrics").json()
     assert metrics["model_calls"] == metrics["total_tokens"] == metrics["ai_analyses"] == 0
@@ -91,7 +92,8 @@ def test_all_fixed_questions_have_honest_replay_outcomes(tmp_path):
     for case in cases:
         row = client.post("/api/feedback", json={"project_id": project_id, "source": "offline-test", "content": case["question"]}).json()
         result = client.post(f"/api/feedback/{row['id']}/analyze").json()
-        assert result["model_mode"] == ("demo" if case.get("expected_document") else "unavailable"), case["id"]
+        assert result["model_mode"] == "demo", case["id"]
+        assert result["outcome"] == ("recommendation" if case.get("expected_document") else "insufficient_context"), case["id"]
 
 
 def test_replay_rejects_questions_with_a_known_prefix(tmp_path):

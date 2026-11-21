@@ -1,4 +1,4 @@
-import type { NavKey } from './types'
+import type { Analysis, NavKey } from './types'
 
 export const navItems: Array<{ key: NavKey; label: string; icon: string }> = [
   { key: 'overview', label: '工作台总览', icon: 'grid' },
@@ -13,6 +13,8 @@ const statusLabels: Record<string, { label: string; tone: string }> = {
   pending: { label: '待分析', tone: 'amber' },
   analyzed: { label: '待复核', tone: 'blue' },
   in_review: { label: '待复核', tone: 'blue' },
+  insufficient_context: { label: '待补资料', tone: 'violet' },
+  unavailable: { label: '待重试', tone: 'amber' },
   ticket_created: { label: '已建工单', tone: 'green' },
   ticketed: { label: '已建工单', tone: 'green' },
   resolved: { label: '已解决', tone: 'green' },
@@ -35,6 +37,11 @@ export function ticketStatusMeta(status: string) {
 
 export function statusMeta(value: string) {
   return statusLabels[value] ?? { label: value || '未标记', tone: 'muted' }
+}
+
+export function canApproveAnalysis(analysis: Analysis | null, demoMode?: boolean) {
+  return Boolean(analysis?.outcome === 'recommendation' && analysis.evidence.length && analysis.proposed_task.trim() &&
+    (analysis.model_mode === 'ai' || analysis.model_mode === 'demo' && demoMode))
 }
 
 export function shortText(value: string, length = 112) {

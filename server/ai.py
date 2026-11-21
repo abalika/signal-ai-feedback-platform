@@ -373,9 +373,9 @@ def validated_evidence(
         row = documents_by_id.get(document_id)
         excerpt = as_text(item.get("excerpt"))
         normalized_excerpt = clean_text(excerpt)
-        normalized_content = clean_text(row["content"]) if row is not None else ""
+        normalized_content = clean_text(row["content"][:MAX_DOCUMENT_CHARS]) if row is not None else ""
         # A citation is accepted only when its ID belongs to retrieved
-        # documents and the quoted text is present in that document.
+        # documents and the quote is in the portion passed to the model.
         if row is None or not normalized_excerpt or normalized_excerpt not in normalized_content:
             rejected += 1
             continue
@@ -392,28 +392,74 @@ def validated_evidence(
     return evidence, rejected
 
 
+def parse_recommendation(
+    raw: str, feedback_id: int, documents: list[sqlite3.Row], model_mode: str,
+) -> tuple[AnalysisOut, int]:
+    parsed = parse_json_object(raw)
+    outcome = parsed.get("outcome")
+    if outcome == "insufficient_context":
+        # The server supplies the reply so an abstention cannot carry invented facts or a task.
+        return AnalysisOut(
+            feedback_id=feedback_id,
+            category="unresolved",
+            summary="当前项目资料不足以确认这条反馈涉及的关键事实。",
+            suggested_reply="现有资料还无法确认这个问题。方便补充相关规则、操作步骤或具体情况吗？",
+            proposed_task="",
+            evidence=[],
+            needs_review=True,
+            model_mode=model_mode,
+            outcome=outcome,
+        ), 0
+    if outcome != "recommendation":
+        raise ValueError("model response lacked a recognized outcome")
+
+    evidence, rejected = validated_evidence(
+        parsed.get("citations", parsed.get("evidence")),
+        {int(row["id"]): row for row in documents},
+    )
+    category = as_text(parsed.get("category"), "other")
+    summary = as_text(parsed.get("summary"))
+    reply = as_text(parsed.get("suggested_reply"))
+    task = as_text(parsed.get("proposed_task"))
+    if not summary or not reply or not task or not evidence:
+        raise ValueError("model response lacked a complete, supported recommendation")
+    return AnalysisOut(
+        feedback_id=feedback_id,
+        category=category if category in {"bug", "question", "feature", "other"} else "other",
+        summary=summary,
+        suggested_reply=reply,
+        proposed_task=task,
+        evidence=evidence,
+        needs_review=bool(parsed.get("needs_review", True)) or bool(rejected),
+        model_mode=model_mode,
+        outcome=outcome,
+    ), rejected
+
+
 def unavailable_analysis(feedback_id: int, reason: str) -> AnalysisOut:
     return AnalysisOut(
         feedback_id=feedback_id,
         category="unresolved",
         summary=reason,
         suggested_reply="暂时无法生成有依据的回复，请由人工核实后处理。",
-        proposed_task="人工核实用户反馈并补充处理记录。",
+        proposed_task="",
         evidence=[],
         needs_review=True,
         model_mode="unavailable",
+        outcome="unavailable",
     )
 
 
 SYSTEM_PROMPT = """你是软件产品支持团队的反馈分析助手。你只能使用提供的项目文档与只读工具结果，不能补充之外的事实。
-输出严格的 JSON 对象，不要输出 Markdown：
-{"category":"bug|question|feature|other","summary":"问题摘要","suggested_reply":"给用户的建议回复","proposed_task":"内部待办","citations":[{"document_id":1,"excerpt":"必须原样摘录文档中的连续文字"}],"needs_review":true}
+输出严格的 JSON 对象，不要输出 Markdown。
+项目资料或工具结果不足以确认问题涉及的关键事实时，只输出 {"outcome":"insufficient_context"}。
+资料足够时，输出以下结构：
+{"outcome":"recommendation","category":"bug|question|feature|other","summary":"问题摘要","suggested_reply":"给用户的建议回复","proposed_task":"内部待办","citations":[{"document_id":1,"excerpt":"必须原样摘录文档中的连续文字"}],"needs_review":true}
 回答当前反馈，保持简短；不要加入与问题无关的玩法、测试或历史说明。
 citations 只引用直接支持核心答案的 1 到 2 段原文，不能为了凑引用加入无关内容；excerpt 必须是给出的文档中的连续原文。
 check_assignment_counts 的 valid=true 只说明任务人数之和符合参与者人数。任务名称未提供或未核对时，不得说“可以开始分配”；须提醒名称仍需填写。
-资料没有用户量、营收、上架日期或设备结论时明确说未知。不要从“无后端”等其他事实推断这些业务数据。
-不要声称已经联系、转交、调查、修复或回复某人，除非工具结果明确显示该动作已经发生。proposed_task 是待办建议，不代表已执行。
-信息不足时 needs_review 必须为 true。"""
+资料没有用户量、营收、上架日期或设备结论时，选择 insufficient_context。不要从“无后端”等其他事实推断这些业务数据。
+不要声称已经联系、转交、调查、修复或回复某人，除非工具结果明确显示该动作已经发生。proposed_task 是待办建议，不代表已执行。"""
 
 TOOL_PLAN_PROMPT = """你是一个受限的反馈处理 Agent。根据用户反馈，从允许的工具中选择且只选择一个。
 只输出 JSON，不要输出 Markdown：

@@ -231,7 +231,7 @@ def test_analysis_uses_web_credentials_and_stable_mode_snapshot(tmp_path, monkey
                     app.state.offline = True
                     app.state.ai_provider = object()
                 return json.dumps({'tool': 'search_documents', 'arguments': {'query': '任务'}})
-            return json.dumps({'category': 'question', 'summary': '人数限制', 'suggested_reply': '不能为零，必须是正整数。',
+            return json.dumps({'outcome': 'recommendation', 'category': 'question', 'summary': '人数限制', 'suggested_reply': '不能为零，必须是正整数。',
                                'proposed_task': '核对任务人数', 'citations': [{'document_id': 1, 'excerpt': '任务人数必须是正整数。'}]})
     app = create_app(tmp_path / 'app.db', offline=True, ai_provider=Provider(), connection_tester=lambda _: 1)
     client = TestClient(app)

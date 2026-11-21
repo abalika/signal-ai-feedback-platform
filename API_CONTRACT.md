@@ -24,7 +24,7 @@ The production app uses the API on the same origin. Vite development defaults to
 | `Project` | `id,name,description,created_at` |
 | `Document` | `id,project_id,title,content,created_at` |
 | `Feedback` | `id,project_id,source,content,status,created_at` |
-| `Analysis` | `feedback_id,category,summary,suggested_reply,proposed_task,evidence: Evidence[],needs_review,model_mode,updated_at` |
+| `Analysis` | `feedback_id,category,summary,suggested_reply,proposed_task,evidence: Evidence[],needs_review,model_mode,outcome,updated_at` |
 | `Evidence` | `document_id,title,excerpt` |
 | `Ticket` | `id,feedback_id,project_id,title,reviewer_note,original_proposed_task,status,resolution_note,created_at,updated_at` |
 | `Trace` | `id,feedback_id,step,detail,created_at` |
@@ -33,6 +33,15 @@ The production app uses the API on the same origin. Vite development defaults to
 `/api/metrics` returns counts and allow-listed numeric model telemetry. Omitting `project_id` aggregates all projects. The AI-to-ticket rate counts tickets linked to AI analyses and divides by the number of AI analyses.
 
 `model_mode` is `ai`, `demo`, or `unavailable`. Analysis and its trace entries are stored in one transaction. A duplicate in-flight analysis can return `409`. For feedback with a ticket, analysis requests return the saved analysis without another model call. Legacy tickets without a saved analysis return `409`.
+
+| `Analysis.outcome` | Feedback queue status | Approval |
+| --- | --- | --- |
+| `recommendation` | `analyzed` | Requires an eligible mode, a task and a verified citation within the document text sent to the model. |
+| `insufficient_context` | `insufficient_context` | Returns `409`. The server supplies a clarification reply with an empty task and evidence list. |
+| `unavailable` | `unavailable` | Returns `409`. Check the failure reason and retry. |
+| `legacy` | Historical status | An unapproved result from an older version needs reanalysis. Existing tickets remain readable and repeated approvals still return the original ticket. |
+
+Retrying updates the analysis, feedback status, and trace entries in one transaction. A successful live abstention counts as an `ai` analysis for operational metrics.
 
 Clients can pass the displayed analysis `updated_at` as `analysis_updated_at` when approving. A stale value returns `409` if no ticket exists. The first approval stores the original suggestion and optional reviewer edits. Repeated approvals return the same ticket. A demo analysis can be approved while in offline mode.
 

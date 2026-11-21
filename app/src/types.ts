@@ -37,6 +37,7 @@ export type Analysis = {
   evidence: Evidence[]
   needs_review: boolean
   model_mode: 'ai' | 'unavailable' | string
+  outcome: 'recommendation' | 'insufficient_context' | 'unavailable' | 'legacy'
   updated_at: string
 }
 

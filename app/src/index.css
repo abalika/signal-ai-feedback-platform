@@ -1,3 +1,2 @@
 html { min-width: 320px; min-height: 100%; }
-body { min-width: 320px; min-height: 100dvh; margin: 0; }
-:focus-visible { outline: 2px solid #287453; outline-offset: 3px; }
+body { min-width: 320px; min-height: 100dvh; }

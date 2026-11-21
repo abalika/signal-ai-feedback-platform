@@ -114,6 +114,21 @@ class Database:
             # existing portfolio database remains readable after the review
             # fields are introduced.
             connection.execute("BEGIN IMMEDIATE")
+            # Old model outputs never declared whether they had enough context.
+            self._ensure_column(
+                connection,
+                "analyses",
+                "outcome",
+                "TEXT CHECK(outcome IN ('recommendation', 'insufficient_context', 'unavailable'))",
+            )
+            connection.execute(
+                """
+                UPDATE feedback SET status = 'unavailable'
+                WHERE status IN ('analyzed', 'in_review') AND id IN (
+                    SELECT feedback_id FROM analyses WHERE outcome IS NULL AND model_mode = 'unavailable'
+                ) AND NOT EXISTS (SELECT 1 FROM tickets WHERE feedback_id = feedback.id)
+                """
+            )
             self._ensure_column(
                 connection,
                 "tickets",
